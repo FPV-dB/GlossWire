@@ -11,17 +11,25 @@ public struct ApplicationsNetworkView: View {
     }
 
     public var body: some View {
-        HSplitView {
-            appList
-                .frame(minWidth: 300, idealWidth: 340, maxWidth: 430)
-            Group {
-                if let app = viewModel.selectedApp {
-                    detail(for: app)
-                } else {
-                    ContentUnavailableView("Select an application", systemImage: "app.badge", description: Text("Choose a running or recently closed app to inspect its network activity."))
+        ZStack {
+            AppBackground()
+            HSplitView {
+                GlassCard(padding: 0) {
+                    appList
                 }
+                .frame(minWidth: 300, idealWidth: 340, maxWidth: 430)
+                Group {
+                    if let app = viewModel.selectedApp {
+                        detail(for: app)
+                    } else {
+                        GlassCard {
+                            ContentUnavailableView("Select an application", systemImage: "app.badge", description: Text("Choose a running or recently closed app to inspect its network activity."))
+                        }
+                    }
+                }
+                .frame(minWidth: 700)
             }
-            .frame(minWidth: 700)
+            .padding(14)
         }
         .onAppear { viewModel.start() }
         .alert("Quit \(viewModel.selectedApp?.appName ?? "application")?", isPresented: $confirmingQuit) {
@@ -124,12 +132,12 @@ public struct ApplicationsNetworkView: View {
 
     private func metrics(_ app: RunningAppNetworkSummary) -> some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), spacing: 10)], spacing: 10) {
-            metric("Download", rate(app.currentDownloadBps), "arrow.down")
-            metric("Upload", rate(app.currentUploadBps), "arrow.up")
-            metric("Downloaded", bytes(app.totalDownloadedBytes), "internaldrive")
-            metric("Uploaded", bytes(app.totalUploadedBytes), "externaldrive")
-            metric("Active connections", "\(app.activeConnectionCount)", "network")
-            metric("Last activity", app.lastSeen?.formatted(date: .abbreviated, time: .standard) ?? "None observed", "clock")
+            GlassMetricCard("Download", value: rate(app.currentDownloadBps), systemImage: "arrow.down", accent: .cyan)
+            GlassMetricCard("Upload", value: rate(app.currentUploadBps), systemImage: "arrow.up", accent: .green)
+            GlassMetricCard("Downloaded", value: bytes(app.totalDownloadedBytes), systemImage: "internaldrive", accent: .blue)
+            GlassMetricCard("Uploaded", value: bytes(app.totalUploadedBytes), systemImage: "externaldrive", accent: .orange)
+            GlassMetricCard("Active connections", value: "\(app.activeConnectionCount)", systemImage: "network", accent: .cyan)
+            GlassMetricCard("Last activity", value: app.lastSeen?.formatted(date: .abbreviated, time: .standard) ?? "None observed", systemImage: "clock", accent: .secondary)
         }
     }
 
@@ -237,10 +245,6 @@ public struct ApplicationsNetworkView: View {
 
     private func gridCell(_ value: String, _ width: CGFloat, _ header: Bool) -> some View {
         Text(value).font(header ? .caption.weight(.semibold) : .caption.monospaced()).lineLimit(1).frame(width: width, alignment: .leading)
-    }
-
-    private func metric(_ title: String, _ value: String, _ symbol: String) -> some View {
-        GroupBox { VStack(alignment: .leading, spacing: 5) { Label(title, systemImage: symbol).font(.caption).foregroundStyle(.secondary); Text(value).font(.headline.monospacedDigit()).lineLimit(1) }.frame(maxWidth: .infinity, alignment: .leading).padding(3) }
     }
 
     private func statusPill(_ text: String, active: Bool) -> some View {

@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 public struct FirewallDashboardView: View {
     @ObservedObject private var viewModel: FirewallDashboardViewModel
     @EnvironmentObject private var applicationNetworkViewModel: ApplicationNetworkViewModel
+    @EnvironmentObject private var throughputMonitor: NetworkThroughputMonitor
     @State private var showingImporter = false
     @State private var showingCountryImporter = false
     @State private var manualValue = ""
@@ -138,22 +139,69 @@ public struct FirewallDashboardView: View {
     }
 
     private var dashboard: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 12)], spacing: 12) {
-                    summaryCard("Active connections", "\(viewModel.snapshot.activeConnections)", "network")
-                    summaryCard("Blocked IPs", "\(viewModel.snapshot.blockedIPs)", "shield")
-                    summaryCard("Loaded blocklists", "\(viewModel.snapshot.loadedBlocklists)", "list.bullet.rectangle")
-                    summaryCard("Blocks last hour", "\(viewModel.snapshot.blocksInLastHour)", "clock")
-                    summaryCard("PF status", viewModel.snapshot.pfStatus, "switch.2")
-                    summaryCard("Last reload", viewModel.snapshot.lastRuleReload.map(Self.dateFormatter.string(from:)) ?? "-", "arrow.triangle.2.circlepath")
+        ZStack {
+            AppBackground()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    dashboardHero
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 12)], spacing: 12) {
+                        summaryCard("Active connections", "\(viewModel.snapshot.activeConnections)", "network")
+                        summaryCard("Blocked IPs", "\(viewModel.snapshot.blockedIPs)", "shield")
+                        summaryCard("Loaded blocklists", "\(viewModel.snapshot.loadedBlocklists)", "list.bullet.rectangle")
+                        summaryCard("Blocks last hour", "\(viewModel.snapshot.blocksInLastHour)", "clock")
+                        summaryCard("PF status", viewModel.snapshot.pfStatus, "switch.2")
+                        summaryCard("Last reload", viewModel.snapshot.lastRuleReload.map(Self.dateFormatter.string(from:)) ?? "-", "arrow.triangle.2.circlepath")
+                    }
+                    HStack(alignment: .top, spacing: 12) {
+                        topList("Top remote IPs", rows: viewModel.snapshot.topRemoteIPs)
+                        topList("Top processes", rows: viewModel.snapshot.topProcesses)
+                    }
                 }
-                HStack(alignment: .top, spacing: 12) {
-                    topList("Top remote IPs", rows: viewModel.snapshot.topRemoteIPs)
-                    topList("Top processes", rows: viewModel.snapshot.topProcesses)
-                }
+                .padding(18)
             }
-            .padding(18)
+        }
+    }
+
+    private var dashboardHero: some View {
+        GlassCard(padding: 18) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("LIVE TRAFFIC")
+                            .font(.caption.weight(.bold))
+                            .tracking(1.4)
+                            .foregroundStyle(.cyan)
+                        Text("Network radar")
+                            .font(.largeTitle.weight(.semibold))
+                        Text("Last 60 seconds of upload and download activity from the existing menu bar throughput monitor.")
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 8) {
+                        StatusPill("Live", kind: .open)
+                        Text("D \(ThroughputFormatter.string(bytesPerSecond: throughputMonitor.current.downloadBytesPerSecond, unit: throughputMonitor.rateUnit))")
+                            .font(.system(.title3, design: .monospaced).weight(.semibold))
+                            .monospacedDigit()
+                        Text("U \(ThroughputFormatter.string(bytesPerSecond: throughputMonitor.current.uploadBytesPerSecond, unit: throughputMonitor.rateUnit))")
+                            .font(.system(.title3, design: .monospaced).weight(.semibold))
+                            .foregroundStyle(.green)
+                            .monospacedDigit()
+                    }
+                }
+                TrafficSparkline(history: throughputMonitor.history)
+                    .frame(height: 180)
+                    .overlay(alignment: .topLeading) {
+                        HStack(spacing: 10) {
+                            Label("Download", systemImage: "arrow.down")
+                                .foregroundStyle(.cyan)
+                            Label("Upload", systemImage: "arrow.up")
+                                .foregroundStyle(.green)
+                        }
+                        .font(.caption.weight(.semibold))
+                        .padding(10)
+                    }
+                    .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 14))
+            }
         }
     }
 
@@ -357,47 +405,49 @@ public struct FirewallDashboardView: View {
     }
 
     private var logs: some View {
-        Table(viewModel.events) {
-            TableColumn("Time") { Text(Self.dateFormatter.string(from: $0.date)) }
-            TableColumn("Event") { Text($0.eventType) }
-            TableColumn("Message") { Text($0.message) }
-            TableColumn("Detail") { Text($0.detail) }
-            TableColumn("Result") { Text($0.succeeded ? "ok" : "failed").foregroundStyle($0.succeeded ? .green : .red) }
+        ZStack {
+            AppBackground()
+            GlassCard(padding: 0) {
+                Table(viewModel.events) {
+                    TableColumn("Time") { Text(Self.dateFormatter.string(from: $0.date)).monospacedDigit() }
+                    TableColumn("Event") { Text($0.eventType) }
+                    TableColumn("Message") { Text($0.message) }
+                    TableColumn("Detail") { Text($0.detail).font(.system(.body, design: .monospaced)) }
+                    TableColumn("Result") { Text($0.succeeded ? "ok" : "failed").foregroundStyle($0.succeeded ? .green : .red) }
+                }
+            }
+            .padding(14)
         }
-        .padding(14)
     }
 
     private func summaryCard(_ title: String, _ value: String, _ icon: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(title, systemImage: icon)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.title2.weight(.semibold))
-                .lineLimit(1)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8))
+        GlassMetricCard(title, value: value, systemImage: icon, accent: accent(for: title))
     }
 
     private func topList(_ title: String, rows: [(String, Int)]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline)
-            ForEach(rows, id: \.0) { row in
-                HStack {
-                    Text(row.0).font(.system(.body, design: .monospaced)).lineLimit(1)
-                    Spacer()
-                    Text("\(row.1)").monospacedDigit()
+        GlassCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(title).font(.headline)
+                ForEach(rows, id: \.0) { row in
+                    HStack {
+                        Text(row.0).font(.system(.body, design: .monospaced)).lineLimit(1)
+                        Spacer()
+                        Text("\(row.1)").monospacedDigit()
+                    }
+                }
+                if rows.isEmpty {
+                    Text("No data yet").foregroundStyle(.secondary)
                 }
             }
-            if rows.isEmpty {
-                Text("No data yet").foregroundStyle(.secondary)
-            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func accent(for title: String) -> Color {
+        if title.localizedCaseInsensitiveContains("block") { return .red }
+        if title.localizedCaseInsensitiveContains("allow") { return .green }
+        if title.localizedCaseInsensitiveContains("PF") { return .orange }
+        return .cyan
     }
 
     private static let dateFormatter: DateFormatter = {
@@ -418,18 +468,28 @@ public struct FirewallLiveConnectionsPage: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            toolbar
-            HSplitView {
-                connectionTable
-                detailsPanel
-                    .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
+        ZStack {
+            AppBackground()
+            VStack(spacing: 12) {
+                toolbar
+                HSplitView {
+                    GlassCard(padding: 0) {
+                        connectionTable
+                    }
+                    detailsPanel
+                        .frame(minWidth: 300, idealWidth: 340, maxWidth: 380)
+                }
             }
+            .padding(14)
         }
     }
 
     private var toolbar: some View {
-        HStack {
+        GlassCard(padding: 12) {
+            HStack(spacing: 10) {
+                Label("Command Centre", systemImage: "dot.radiowaves.left.and.right")
+                    .font(.headline)
+                    .foregroundStyle(.cyan)
             TextField("Search process, IP, port, protocol", text: Binding(
                 get: { liveViewModel.searchText },
                 set: { liveViewModel.searchText = $0 }
@@ -484,8 +544,8 @@ public struct FirewallLiveConnectionsPage: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+            }
         }
-        .padding(12)
     }
 
     private var connectionTable: some View {
@@ -495,16 +555,16 @@ public struct FirewallLiveConnectionsPage: View {
         )) {
             TableColumn("Process") { connection in processCell(connection) }
             .width(150)
-            TableColumn("PID") { connection in numericCell(connection.pid.map(String.init) ?? "-", width: 64) }
-                .width(64)
             TableColumn("Protocol") { connection in fixedCell(connection.protocolKind.rawValue, width: 72) }
                 .width(72)
+            TableColumn("Direction") { connection in directionCell(connection.direction, width: 95) }
+                .width(95)
             TableColumn("Local") { connection in monoCell(endpoint(connection.local), width: 210) }
                 .width(210)
             TableColumn("Remote") { connection in remoteEndpointCell(connection) }
                 .width(230)
-            TableColumn("State") { connection in fixedCell(connection.state.isEmpty ? "-" : connection.state, width: 120) }
-                .width(120)
+            TableColumn("Status") { connection in statusCell(connection, width: 110) }
+                .width(110)
             TableColumn("Bytes In") { connection in numericCell(formatBytes(connection.bytesIn), width: 90) }
                 .width(90)
             TableColumn("Bytes Out") { connection in numericCell(formatBytes(connection.bytesOut), width: 90) }
@@ -519,57 +579,60 @@ public struct FirewallLiveConnectionsPage: View {
 
     private var detailsPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Connection Details", systemImage: "info.circle")
-                .font(.headline)
             if let connection = liveViewModel.selectedConnection {
-                detail("Remote IP", connection.remote?.address ?? "-")
-                detail("Remote port", connection.remote?.port ?? "-")
-                detail("Process", connection.processName)
-                detail("PID", connection.pid.map(String.init) ?? "-")
-                detail("Protocol", connection.protocolKind.rawValue)
-                detail("State", connection.state.isEmpty ? "-" : connection.state)
-                detail("Bytes in", formatBytes(connection.bytesIn))
-                detail("Bytes out", formatBytes(connection.bytesOut))
-                detail("Inbound rate", formatRate(connection.bytesInPerSecond))
-                detail("Outbound rate", formatRate(connection.bytesOutPerSecond))
-                detail("First seen", Self.dateTimeFormatter.string(from: connection.firstSeen))
-                detail("Last seen", Self.dateTimeFormatter.string(from: connection.lastSeen))
-                Divider()
-                HStack {
-                    Button("Geo Lookup") { viewModel.requestLookup() }
-                        .disabled(!canLookupSelected)
-                    Button("Reputation Lookup") { viewModel.requestLookup(providerID: "talos") }
-                        .disabled(!canLookupSelected)
+                InspectorSection("Connection Details", systemImage: "info.circle") {
+                    HStack {
+                        ProcessIconLabel(connection.processName)
+                        Spacer()
+                        statusPill(for: connection)
+                    }
+                    detail("Remote IP", connection.remote?.address ?? "-")
+                    detail("Remote port", connection.remote?.port ?? "-")
+                    detail("Local", endpoint(connection.local))
+                    detail("PID", connection.pid.map(String.init) ?? "-")
+                    detail("Protocol", connection.protocolKind.rawValue)
+                    detail("Direction", connection.direction.rawValue.capitalized)
+                    detail("State", connection.state.isEmpty ? "-" : connection.state)
                 }
-                HStack {
-                    Button("Open in Browser") { viewModel.requestLookup() }
-                        .disabled(!canLookupSelected)
-                    Button("Block IP") { blockSelected() }
-                        .disabled(connection.remote?.address == nil)
+                InspectorSection("Traffic", systemImage: "waveform.path.ecg") {
+                    detail("Bytes in", formatBytes(connection.bytesIn))
+                    detail("Bytes out", formatBytes(connection.bytesOut))
+                    detail("Inbound rate", formatRate(connection.bytesInPerSecond))
+                    detail("Outbound rate", formatRate(connection.bytesOutPerSecond))
+                    detail("First seen", Self.dateTimeFormatter.string(from: connection.firstSeen))
+                    detail("Last seen", Self.dateTimeFormatter.string(from: connection.lastSeen))
                 }
-                Button("Copy IP") { viewModel.copySelectedRemoteIP() }
-                    .disabled(connection.remote?.address == nil)
-                Text("GeoIP and reputation results are approximate and can be wrong due to VPNs, CDNs, proxies, cloud hosting, and mobile networks.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                TextField("Add note", text: $viewModel.selectedConnectionNote, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                Divider()
+                InspectorSection("Actions", systemImage: "scope") {
+                    HStack {
+                        Button("Geo Lookup") { viewModel.requestLookup() }
+                            .disabled(!canLookupSelected)
+                        Button("Reputation") { viewModel.requestLookup(providerID: "talos") }
+                            .disabled(!canLookupSelected)
+                    }
+                    HStack {
+                        Button("Copy IP") { viewModel.copySelectedRemoteIP() }
+                            .disabled(connection.remote?.address == nil)
+                        Button("Block IP") { blockSelected() }
+                            .disabled(connection.remote?.address == nil)
+                    }
+                    Text("GeoIP and reputation results are approximate and can be wrong due to VPNs, CDNs, proxies, cloud hosting, and mobile networks.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField("Add note", text: $viewModel.selectedConnectionNote, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                }
                 advancedTools
             } else {
-                Text("Select a live connection to inspect lookup and block actions.")
-                    .foregroundStyle(.secondary)
+                GlassCard {
+                    ContentUnavailableView("Select a connection", systemImage: "scope", description: Text("Inspect lookup, block, and traffic details for a live flow."))
+                }
             }
             Spacer()
         }
-        .padding(12)
-        .background(.quaternary.opacity(0.25))
     }
 
     private var advancedTools: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Advanced Network Tools", systemImage: "wrench.and.screwdriver")
-                .font(.headline)
+        InspectorSection("Advanced Network Tools", systemImage: "wrench.and.screwdriver") {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], spacing: 8) {
                 Button("Web Geo Lookup") { viewModel.requestLookup() }
                     .disabled(!canLookupSelected)
@@ -614,6 +677,19 @@ public struct FirewallLiveConnectionsPage: View {
         return "open"
     }
 
+    private func statusKind(for connection: NetworkConnection) -> StatusPill.Kind {
+        switch status(for: connection) {
+        case "allowlisted": .allowlisted
+        case "blocked": .blocked
+        case "open": .open
+        default: .neutral
+        }
+    }
+
+    private func statusPill(for connection: NetworkConnection) -> StatusPill {
+        StatusPill(status(for: connection), kind: statusKind(for: connection))
+    }
+
     @ViewBuilder
     private func providerButtons() -> some View {
         ForEach(LookupProvider.presets) { provider in
@@ -656,8 +732,7 @@ public struct FirewallLiveConnectionsPage: View {
     }
 
     private func processCell(_ connection: NetworkConnection) -> some View {
-        Text(connection.processName)
-            .lineLimit(1)
+        ProcessIconLabel(connection.processName)
             .frame(width: 150, alignment: .leading)
             .contextMenu { contextMenu(for: connection) }
     }
@@ -681,6 +756,26 @@ public struct FirewallLiveConnectionsPage: View {
     private func fixedCell(_ value: String, width: CGFloat) -> some View {
         Text(value)
             .lineLimit(1)
+            .frame(width: width, alignment: .leading)
+    }
+
+    private func statusCell(_ connection: NetworkConnection, width: CGFloat) -> some View {
+        statusPill(for: connection)
+            .frame(width: width, alignment: .leading)
+            .contextMenu { contextMenu(for: connection) }
+    }
+
+    private func directionCell(_ direction: ConnectionDirection, width: CGFloat) -> some View {
+        let symbol: String = switch direction {
+        case .incoming: "arrow.down.left"
+        case .outgoing: "arrow.up.right"
+        case .listening: "dot.radiowaves.left.and.right"
+        case .established: "arrow.left.arrow.right"
+        case .unknown: "questionmark"
+        }
+        return Label(direction.rawValue.capitalized, systemImage: symbol)
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.secondary)
             .frame(width: width, alignment: .leading)
     }
 

@@ -80,54 +80,53 @@ public struct NetworkThroughputPopover: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Label("Network Throughput", systemImage: "network")
-                    .font(.headline)
-                Spacer()
-                Circle()
-                    .fill(.green)
-                    .frame(width: 7, height: 7)
-                Text("Live")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        ZStack {
+            AppBackground()
+            GlassCard(padding: 14) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Label("Network Throughput", systemImage: "network")
+                            .font(.headline)
+                        Spacer()
+                        StatusPill("Live", kind: .open)
+                    }
 
-            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 8) {
-                metricRow("Download", systemImage: "arrow.down", value: currentDownload, color: .blue)
-                metricRow("Upload", systemImage: "arrow.up", value: currentUpload, color: .green)
-                Divider().gridCellColumns(3)
-                metricRow("Peak download", systemImage: "arrow.down.to.line", value: peakDownload, color: .blue)
-                metricRow("Peak upload", systemImage: "arrow.up.to.line", value: peakUpload, color: .green)
-            }
+                    Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 8) {
+                        metricRow("Download", systemImage: "arrow.down", value: currentDownload, color: .cyan)
+                        metricRow("Upload", systemImage: "arrow.up", value: currentUpload, color: .green)
+                        Divider().gridCellColumns(3)
+                        metricRow("Peak download", systemImage: "arrow.down.to.line", value: peakDownload, color: .cyan)
+                        metricRow("Peak upload", systemImage: "arrow.up.to.line", value: peakUpload, color: .green)
+                    }
 
-            ThroughputGraph(history: monitor.history)
-                .frame(height: 82)
-                .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 7))
-                .overlay(alignment: .topLeading) {
-                    Text("Last 60 seconds")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .padding(6)
+                    TrafficSparkline(history: monitor.history)
+                        .frame(height: 82)
+                        .background(Color.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(alignment: .topLeading) {
+                            Text("Last 60 seconds")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .padding(6)
+                        }
+
+                    milestoneProgress
+
+                    HStack {
+                        Button("Show Connections", action: showConnections)
+                            .buttonStyle(.borderedProminent)
+                        Button {
+                            refreshConnections()
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        .buttonStyle(.bordered)
+                        .help("Refresh connections")
+                        Spacer()
+                        Button("Quit", action: quit)
+                    }
                 }
-
-            milestoneProgress
-
-            HStack {
-                Button("Show Connections", action: showConnections)
-                    .buttonStyle(.borderedProminent)
-                Button {
-                    refreshConnections()
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .buttonStyle(.bordered)
-                .help("Refresh connections")
-                Spacer()
-                Button("Quit", action: quit)
             }
         }
-        .padding(14)
         .frame(width: 350)
     }
 

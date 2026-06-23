@@ -98,7 +98,7 @@ Settings include:
 
 The feature uses the existing network byte counters. It does not create a second polling loop. If traffic jumps across multiple milestones in one sample, the app plays only one sound and advances the next milestone correctly.
 
-Custom audio files are stored with security-scoped bookmarks where macOS requires them. If a custom sound cannot be found later, the app falls back to the built-in tick and shows a non-fatal warning.
+Custom audio files can use common macOS-supported audio formats such as MP3, WAV, M4A, AIFF, and AAC. They are stored with security-scoped bookmarks where macOS requires them. If a custom sound cannot be found later, the app falls back to the built-in tick and shows a non-fatal warning.
 
 ![Data Milestone Sounds settings](docs/screenshots/settings-data-milestones.png)
 

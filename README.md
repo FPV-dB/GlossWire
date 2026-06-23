@@ -441,6 +441,10 @@ Network-related data leaves the machine only when the user explicitly opens a th
 
 Created by **FPV-dB**.
 
-## License
+## Source And Use Terms
 
-No license has been declared yet. Until a license is added, all rights are reserved by the repository owner.
+This project is open-source/source-available for personal and non-commercial use.
+
+You are free to copy, study, and modify it as you please, as long as you credit **FPV-dB**.
+
+You agree not to sell the app, sell modified versions, sell bundled copies, or use any part of this project in a product or service offered for sale.

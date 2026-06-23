@@ -52,6 +52,8 @@ public struct FirewallDashboardView: View {
                     logs
                 case .settings:
                     FirewallSettingsView(viewModel: viewModel)
+                case .about:
+                    ConnectionManagerAboutView()
                 }
             }
             .navigationTitle(viewModel.selectedSection?.rawValue ?? "Dashboard")
@@ -736,6 +738,65 @@ public struct FirewallLiveConnectionsPage: View {
         formatter.timeStyle = .medium
         return formatter
     }()
+}
+
+public struct ConnectionManagerAboutView: View {
+    public init() {}
+
+    public var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                HStack(spacing: 14) {
+                    Image(systemName: "shield.lefthalf.filled")
+                        .font(.system(size: 42))
+                        .foregroundStyle(.blue)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Connection Manager")
+                            .font(.largeTitle.weight(.semibold))
+                        Text("Native macOS firewall dashboard and live connection monitor.")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                aboutCard("What It Does") {
+                    Text("Connection Manager helps inspect live network activity, review process connections, manage app-owned PF firewall rules, import blocklists, and monitor throughput from the menu bar.")
+                }
+
+                aboutCard("Credits") {
+                    Text("Created by FPV-dB.")
+                        .font(.headline)
+                    Text("Thank you for using, testing, and improving the app.")
+                        .foregroundStyle(.secondary)
+                }
+
+                aboutCard("Source And Use Terms") {
+                    Text("This project is open-source/source-available for personal and non-commercial use.")
+                    Text("You are free to copy, study, and modify it as you please, as long as you credit FPV-dB.")
+                    Text("You agree not to sell the app, sell modified versions, sell bundled copies, or use any part of this project in a product or service offered for sale.")
+                        .foregroundStyle(.orange)
+                }
+
+                aboutCard("Safety Model") {
+                    Text("The app is built for defensive visibility and user-confirmed firewall changes. It uses dedicated PF anchors, avoids global PF flushes, and does not perform packet capture, credential capture, traffic interception, or stealth behavior.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: 900, alignment: .leading)
+        }
+    }
+
+    private func aboutCard<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.headline)
+            content()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 12))
+    }
 }
 
 public struct RulesPreviewView: View {

@@ -530,6 +530,7 @@ public enum FirewallSection: String, CaseIterable, Identifiable, Sendable {
     case rules = "Rules"
     case logs = "Logs"
     case settings = "Settings"
+    case about = "About"
 
     public var id: String { rawValue }
 
@@ -544,6 +545,7 @@ public enum FirewallSection: String, CaseIterable, Identifiable, Sendable {
         case .rules: "curlybraces.square"
         case .logs: "doc.text.magnifyingglass"
         case .settings: "gearshape"
+        case .about: "info.circle"
         }
     }
 }

@@ -437,6 +437,10 @@ It does not require an account, does not include analytics, and does not send te
 
 Network-related data leaves the machine only when the user explicitly opens a third-party lookup page, runs ping/traceroute toward a selected host, or refreshes externally hosted range feeds such as Google's published IP range documents.
 
+## Credits
+
+Created by **FPV-dB**.
+
 ## License
 
 No license has been declared yet. Until a license is added, all rights are reserved by the repository owner.

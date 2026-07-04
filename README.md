@@ -6,6 +6,14 @@ It is built for defensive visibility: seeing which processes are talking to the 
 
 The app is intentionally conservative. It uses dedicated PF anchors, shows generated rules before applying them, requires administrator approval for firewall writes, and avoids packet capture, credential capture, traffic interception, or stealth behavior.
 
+![Connection Manager defensive dashboard](docs/screenshots/defensive-dashboard-redacted.png)
+
+## Documentation
+
+- [User Guide](docs/USER_GUIDE.md)
+- [Privacy And Security Notes](docs/PRIVACY_SECURITY.md)
+- [Google Filtering Audit](docs/GoogleFilteringAudit.md)
+
 ## Highlights
 
 - Live TCP and UDP connection monitoring.

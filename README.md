@@ -448,3 +448,6 @@ This project is open-source/source-available for personal and non-commercial use
 You are free to copy, study, and modify it as you please, as long as you credit **FPV-dB**.
 
 You agree not to sell the app, sell modified versions, sell bundled copies, or use any part of this project in a product or service offered for sale.
+## Hire / Contact
+
+FPV-dB is available for hire for macOS, SwiftUI, RF tooling, drone software, mapping, and field-operations utilities. For work enquiries, contact ex.dee.emm@gmail.com.

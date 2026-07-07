@@ -160,6 +160,7 @@ public struct FirewallSettings: Hashable, Sendable {
     public var defaultLookupProviderID = "ipinfo"
     public var suppressLookupPrivacyWarning = false
     public var suppressTracerouteWarning = false
+    public var nmapPath = ""
     public var launchAtLogin = false
     public var startupMode: StartupProtectionMode = .monitorOnly
     public var startupAcknowledged = false

@@ -114,6 +114,7 @@ public final class FirewallDatabase: @unchecked Sendable {
                 case "defaultLookupProviderID": if !value.isEmpty { settings.defaultLookupProviderID = value }
                 case "suppressLookupPrivacyWarning": settings.suppressLookupPrivacyWarning = value == "1"
                 case "suppressTracerouteWarning": settings.suppressTracerouteWarning = value == "1"
+                case "nmapPath": settings.nmapPath = value
                 case "launchAtLogin": settings.launchAtLogin = value == "1"
                 case "startupMode": settings.startupMode = StartupProtectionMode(rawValue: value) ?? .monitorOnly
                 case "startupAcknowledged": settings.startupAcknowledged = value == "1"
@@ -142,6 +143,7 @@ public final class FirewallDatabase: @unchecked Sendable {
                 ("defaultLookupProviderID", settings.defaultLookupProviderID),
                 ("suppressLookupPrivacyWarning", settings.suppressLookupPrivacyWarning ? "1" : "0"),
                 ("suppressTracerouteWarning", settings.suppressTracerouteWarning ? "1" : "0"),
+                ("nmapPath", settings.nmapPath),
                 ("launchAtLogin", settings.launchAtLogin ? "1" : "0"),
                 ("startupMode", settings.startupMode.rawValue),
                 ("startupAcknowledged", settings.startupAcknowledged ? "1" : "0"),

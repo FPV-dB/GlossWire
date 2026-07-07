@@ -146,6 +146,7 @@ public final class FirewallDashboardViewModel: ObservableObject {
     public func saveSettings() {
         do {
             try database.save(settings: settings)
+            UserDefaults.standard.set(settings.nmapPath, forKey: "nmap.customPath")
             liveConnectionsViewModel.refreshInterval = settings.refreshInterval
             try loginItemService.setEnabled(settings.launchAtLogin)
             reload()
@@ -529,6 +530,7 @@ public enum FirewallSection: String, CaseIterable, Identifiable, Sendable {
     case countryBlocking = "Country Blocking"
     case rules = "Rules"
     case logs = "Logs"
+    case nmapWorkbench = "Nmap Workbench"
     case settings = "Settings"
     case about = "About"
 
@@ -544,6 +546,7 @@ public enum FirewallSection: String, CaseIterable, Identifiable, Sendable {
         case .countryBlocking: "globe"
         case .rules: "curlybraces.square"
         case .logs: "doc.text.magnifyingglass"
+        case .nmapWorkbench: "dot.radiowaves.left.and.right"
         case .settings: "gearshape"
         case .about: "info.circle"
         }

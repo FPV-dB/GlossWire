@@ -14,6 +14,7 @@ let package = Package(
         .target(
             name: "LiveConnectionsMonitorCore",
             linkerSettings: [
+                .linkedFramework("Security"),
                 .linkedLibrary("sqlite3")
             ]
         ),

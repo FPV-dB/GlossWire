@@ -16,6 +16,13 @@ public struct FirewallDashboardView: View {
     @State private var countryNotes = ""
     @State private var dontShowLookupWarningAgain = false
     @State private var dontShowTracerouteWarningAgain = false
+    @AppStorage("visual.enableGradientBackground") private var enableGradientBackground = true
+    @AppStorage("visual.enableGlassPanels") private var enableGlassPanels = true
+    @AppStorage("visual.enableRowHoverGlow") private var enableRowHoverGlow = true
+    @AppStorage("visual.enableTrafficSparklines") private var enableTrafficSparklines = true
+    @AppStorage("visual.compactMode") private var compactMode = false
+    @AppStorage("visual.reduceAnimations") private var reduceAnimations = false
+    @AppStorage("visual.highContrastMode") private var highContrastMode = false
 
     public init(viewModel: FirewallDashboardViewModel) {
         self.viewModel = viewModel
@@ -51,6 +58,8 @@ public struct FirewallDashboardView: View {
                     }
                 case .logs:
                     logs
+                case .nmapWorkbench:
+                    NmapWorkbenchView(viewModel: NmapScanViewModel())
                 case .settings:
                     FirewallSettingsView(viewModel: viewModel)
                 case .about:
@@ -140,17 +149,21 @@ public struct FirewallDashboardView: View {
 
     private var dashboard: some View {
         ZStack {
-            AppBackground()
+            if enableGradientBackground {
+                GradientBackground()
+            } else {
+                Color(nsColor: .windowBackgroundColor).ignoresSafeArea()
+            }
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     dashboardHero
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 12)], spacing: 12) {
-                        summaryCard("Active connections", "\(viewModel.snapshot.activeConnections)", "network")
-                        summaryCard("Blocked IPs", "\(viewModel.snapshot.blockedIPs)", "shield")
-                        summaryCard("Loaded blocklists", "\(viewModel.snapshot.loadedBlocklists)", "list.bullet.rectangle")
-                        summaryCard("Blocks last hour", "\(viewModel.snapshot.blocksInLastHour)", "clock")
-                        summaryCard("PF status", viewModel.snapshot.pfStatus, "switch.2")
-                        summaryCard("Last reload", viewModel.snapshot.lastRuleReload.map(Self.dateFormatter.string(from:)) ?? "-", "arrow.triangle.2.circlepath")
+                        MetricCard(title: "Active Connections", value: "\(viewModel.snapshot.activeConnections)", subtitle: "Observed now", systemImage: "network")
+                        MetricCard(title: "Blocked", value: "\(viewModel.snapshot.blockedIPs)", subtitle: "PF managed IPs", systemImage: "shield.fill", accentGradient: VisualTheme(colorScheme: .dark).dangerGradient)
+                        MetricCard(title: "Blocklists", value: "\(viewModel.snapshot.loadedBlocklists)", subtitle: "Loaded sources", systemImage: "list.bullet.rectangle")
+                        MetricCard(title: "Suspicious", value: "\(viewModel.snapshot.blocksInLastHour)", subtitle: "Blocks last hour", systemImage: "exclamationmark.triangle.fill", accentGradient: VisualTheme(colorScheme: .dark).warningGradient)
+                        MetricCard(title: "PF Status", value: viewModel.snapshot.pfStatus, subtitle: "Packet filter", systemImage: "switch.2")
+                        MetricCard(title: "Total Traffic", value: viewModel.snapshot.lastRuleReload.map(Self.dateFormatter.string(from:)) ?? "-", subtitle: "Last reload", systemImage: "arrow.triangle.2.circlepath")
                     }
                     HStack(alignment: .top, spacing: 12) {
                         topList("Top remote IPs", rows: viewModel.snapshot.topRemoteIPs)
@@ -163,7 +176,7 @@ public struct FirewallDashboardView: View {
     }
 
     private var dashboardHero: some View {
-        GlassCard(padding: 18) {
+        GlassPanel(padding: 18, glow: true) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 6) {
@@ -461,10 +474,13 @@ public struct FirewallDashboardView: View {
 public struct FirewallLiveConnectionsPage: View {
     @ObservedObject var viewModel: FirewallDashboardViewModel
     @ObservedObject private var liveViewModel: LiveConnectionsViewModel
+    @ObservedObject private var reputationStore = ReputationBlockListStore.shared
+    @StateObject private var throughputViewModel: IPThroughputViewModel
 
     public init(viewModel: FirewallDashboardViewModel) {
         self.viewModel = viewModel
         self._liveViewModel = ObservedObject(wrappedValue: viewModel.liveConnectionsViewModel)
+        self._throughputViewModel = StateObject(wrappedValue: IPThroughputViewModel(connectionsProvider: { viewModel.liveConnectionsViewModel.connections }))
     }
 
     public var body: some View {
@@ -481,6 +497,11 @@ public struct FirewallLiveConnectionsPage: View {
                 }
             }
             .padding(14)
+        }
+        .onChange(of: liveViewModel.selectedConnection?.remote?.address) { _, ip in
+            if IPThroughputSettingsView.isEnabled {
+                throughputViewModel.select(ip: ip)
+            }
         }
     }
 
@@ -602,6 +623,10 @@ public struct FirewallLiveConnectionsPage: View {
                     detail("First seen", Self.dateTimeFormatter.string(from: connection.firstSeen))
                     detail("Last seen", Self.dateTimeFormatter.string(from: connection.lastSeen))
                 }
+                InspectorSection("Block List Matches", systemImage: "exclamationmark.shield") {
+                    ReputationMatchesView(matches: reputationStore.matches(for: connection))
+                }
+                IPThroughputPanel(viewModel: throughputViewModel)
                 InspectorSection("Actions", systemImage: "scope") {
                     HStack {
                         Button("Geo Lookup") { viewModel.requestLookup() }
@@ -717,6 +742,20 @@ public struct FirewallLiveConnectionsPage: View {
             liveViewModel.selectedConnectionID = connection.id
             viewModel.copySelectedRemoteIP()
         }
+        Button("Show Throughput Graph") {
+            liveViewModel.selectedConnectionID = connection.id
+            if let ip = connection.remote?.address { throughputViewModel.select(ip: ip) }
+        }
+        Button("Pin Throughput Graph") {
+            liveViewModel.selectedConnectionID = connection.id
+            if let ip = connection.remote?.address { throughputViewModel.pin(ip: ip) }
+        }
+        Button("Clear Throughput History") {
+            if let ip = connection.remote?.address { throughputViewModel.clear(ip: ip) }
+        }
+        Button("Export Throughput CSV") {
+            if let ip = connection.remote?.address { throughputViewModel.exportCSV(ip: ip) }
+        }
         Button("Block remote IP") {
             liveViewModel.selectedConnectionID = connection.id
             blockSelected()
@@ -746,11 +785,14 @@ public struct FirewallLiveConnectionsPage: View {
     }
 
     private func remoteEndpointCell(_ connection: NetworkConnection) -> some View {
-        Text(connection.remote.map(endpoint) ?? "-")
-            .font(.system(.body, design: .monospaced))
-            .lineLimit(1)
-            .frame(width: 230, alignment: .leading)
-            .contextMenu { contextMenu(for: connection) }
+        HStack(spacing: 6) {
+            Text(connection.remote.map(endpoint) ?? "-")
+                .font(.system(.body, design: .monospaced))
+                .lineLimit(1)
+            ReputationBadge(matches: reputationStore.matches(for: connection))
+        }
+        .frame(width: 230, alignment: .leading)
+        .contextMenu { contextMenu(for: connection) }
     }
 
     private func fixedCell(_ value: String, width: CGFloat) -> some View {
@@ -919,6 +961,13 @@ public struct FirewallSettingsView: View {
     @EnvironmentObject private var throughputMonitor: NetworkThroughputMonitor
     @State private var acknowledgedStartupRisk = false
     @State private var acknowledgedStrictRisk = false
+    @AppStorage("visual.enableGradientBackground") private var enableGradientBackground = true
+    @AppStorage("visual.enableGlassPanels") private var enableGlassPanels = true
+    @AppStorage("visual.enableRowHoverGlow") private var enableRowHoverGlow = true
+    @AppStorage("visual.enableTrafficSparklines") private var enableTrafficSparklines = true
+    @AppStorage("visual.compactMode") private var compactMode = false
+    @AppStorage("visual.reduceAnimations") private var reduceAnimations = false
+    @AppStorage("visual.highContrastMode") private var highContrastMode = false
 
     public var body: some View {
         Form {
@@ -1018,6 +1067,8 @@ public struct FirewallSettingsView: View {
 
             DataMilestoneSoundsSettingsView(manager: throughputMonitor.dataMilestoneSoundManager)
 
+            BlockListsSettingsView()
+
             Section("Lookups") {
                 Picker("Default lookup provider", selection: $viewModel.settings.defaultLookupProviderID) {
                     ForEach(LookupProvider.presets) { provider in
@@ -1026,6 +1077,31 @@ public struct FirewallSettingsView: View {
                 }
                 Toggle("Do not show GeoIP/reputation lookup privacy warning again", isOn: $viewModel.settings.suppressLookupPrivacyWarning)
                 Toggle("Do not show traceroute warning again", isOn: $viewModel.settings.suppressTracerouteWarning)
+            }
+
+            Section("Nmap") {
+                TextField("Custom nmap path", text: $viewModel.settings.nmapPath)
+                    .font(.system(.body, design: .monospaced))
+                Text("Leave blank to auto-detect /opt/homebrew/bin/nmap, /usr/local/bin/nmap, or /usr/bin/nmap.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            IPSafetySettingsView()
+
+            IPThroughputSettingsView()
+
+            Section("Visual Appearance") {
+                Toggle("Enable gradient background", isOn: $enableGradientBackground)
+                Toggle("Enable glass panels", isOn: $enableGlassPanels)
+                Toggle("Enable row hover glow", isOn: $enableRowHoverGlow)
+                Toggle("Enable traffic sparklines", isOn: $enableTrafficSparklines)
+                Toggle("Compact mode", isOn: $compactMode)
+                Toggle("Reduce animations", isOn: $reduceAnimations)
+                Toggle("High contrast mode", isOn: $highContrastMode)
+                Text("These settings are visual only and do not change firewall, logging, menu bar, or Nmap behavior.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Button("Save Settings") {

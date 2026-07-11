@@ -39,6 +39,7 @@ public struct NetworkIntelligenceView: View {
         case .ports: ports(analyzer)
         case .domains: domains(analyzer)
         case .calendar: calendar(analyzer)
+        case .signals: signals(analyzer)
         }
     }
 
@@ -106,8 +107,41 @@ public struct NetworkIntelligenceView: View {
         }.chartForegroundStyleScale(range: Gradient(colors: [.gray.opacity(0.2), .green])).padding(12)
     }
 
+    private func signals(_ analyzer: NetworkIntelligenceAnalyzer) -> some View {
+        let signals = analyzer.behaviourSignals(records: viewModel.timelineHistory).filter { matches($0.process) || matches($0.detail) }
+        let capabilities = analyzer.detectionCapabilities(provider: .processCounters)
+        return ScrollView {
+            VStack(spacing: 12) {
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Behaviour Signals", systemImage: "waveform.path.ecg").font(.headline)
+                        if signals.isEmpty { Text("No supported behavioural signals were found in retained history.").foregroundStyle(.secondary) }
+                        ForEach(signals) { signal in
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack { Text(signal.kind.rawValue).font(.subheadline.weight(.semibold)); Spacer(); Text("\(signal.confidence)% pattern confidence").font(.caption.monospacedDigit()) }
+                                Text(maskProcess(signal.process)).font(.caption.monospaced())
+                                Text(signal.detail).font(.caption).foregroundStyle(.secondary)
+                            }.padding(.vertical, 4)
+                        }
+                    }
+                }
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text("Detection Coverage").font(.headline)
+                        ForEach(capabilities) { item in
+                            HStack(alignment: .top) {
+                                Image(systemName: item.available ? "checkmark.circle.fill" : "lock.circle").foregroundStyle(item.available ? .green : .secondary)
+                                VStack(alignment: .leading) { Text(item.id).font(.subheadline.weight(.medium)); Text(item.detail).font(.caption).foregroundStyle(.secondary) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private func matches(_ value: String) -> Bool { searchText.isEmpty || value.localizedCaseInsensitiveContains(searchText) }
     private func maskProcess(_ value: String) -> String { PrivacyRedactor.process(value, enabled: viewModel.privacyModeEnabled) }
 }
 
-private enum IntelligenceSection: String, CaseIterable, Identifiable { case journal = "Journal", passports = "Passports", memory = "Network Memory", ports = "Ports", domains = "Domains", calendar = "Calendar"; var id: String { rawValue } }
+private enum IntelligenceSection: String, CaseIterable, Identifiable { case journal = "Journal", passports = "Passports", memory = "Network Memory", ports = "Ports", domains = "Domains", calendar = "Calendar", signals = "Signals"; var id: String { rawValue } }

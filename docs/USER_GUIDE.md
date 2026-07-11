@@ -73,8 +73,11 @@ The **Intelligence** page turns retained connection observations into local summ
 - **Ports:** a ranked chart of observed destination-port usage.
 - **Domains:** related hostnames collapsed into domain-family summaries.
 - **Calendar:** a day-by-day activity heatmap based on retained observations.
+- **Signals:** periodic same-endpoint patterns and IPv6 use derived from retained observations, plus an explicit coverage list for detectors that require richer providers.
 
 Search and Privacy Mode apply to the intelligence views. These summaries describe connection metadata GlossWire has actually retained; they do not inspect payloads, infer packet counts, or claim traffic-byte totals when those measurements are unavailable. Domain-family grouping is a display heuristic and is not a public-suffix classification service.
+
+Periodic signals are behavioral hints, not malware verdicts. Upload-spike, wake/idle attribution, VPN/DNS leak, executable-change, and inbound port-scan detection remain visibly capability-gated until GlossWire has the measured byte, power-state, route/DNS, executable-identity, or inbound-attempt telemetry needed to support them accurately.
 
 ### Nmap for a Selected IP
 

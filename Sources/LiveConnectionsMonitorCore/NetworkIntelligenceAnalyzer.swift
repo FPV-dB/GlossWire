@@ -28,6 +28,15 @@ public struct AddressMemory: Identifiable, Sendable, Hashable {
 public struct PortUsage: Identifiable, Sendable, Hashable { public let id: String; public let count: Int; public let service: String }
 public struct DomainFamilyUsage: Identifiable, Sendable, Hashable { public let id: String; public let count: Int; public let hosts: Int }
 public struct DailyNetworkActivity: Identifiable, Sendable, Hashable { public var id: Date { day }; public let day: Date; public let observations: Int; public let processes: Int; public let destinations: Int; public let totalBytes: UInt64? }
+public enum BehaviourSignalKind: String, Sendable, Hashable { case beacon = "Periodic beacon", ipv6 = "IPv6 activity", uploadSpike = "Upload spike" }
+public struct BehaviourSignal: Identifiable, Sendable, Hashable {
+    public let id: String
+    public let kind: BehaviourSignalKind
+    public let process: String
+    public let detail: String
+    public let confidence: Int
+}
+public struct DetectionCapability: Identifiable, Sendable, Hashable { public let id: String; public let available: Bool; public let detail: String }
 
 public struct NetworkIntelligenceAnalyzer: Sendable {
     private let calendar = Calendar.current
@@ -95,6 +104,48 @@ public struct NetworkIntelligenceAnalyzer: Sendable {
         let blocked = values.filter { $0.ruleAction == .blocked || $0.ruleAction == .manualBlock }.count
         let bytesText = measuredBytes(values).map { " Recorded per-flow traffic totalled \(ByteCountFormatter.string(fromByteCount: Int64(clamping: $0), countStyle: .binary))." } ?? " Per-flow byte totals were unavailable from the active provider."
         return "On \(start.formatted(date: .long, time: .omitted)), GlossWire retained \(values.count.formatted()) connection observations from \(apps.count) processes to \(destinations) unique remote addresses across \(countries) resolved countries. The most active processes were \(top). \(blocked) observations carried a blocked rule outcome.\(bytesText) This journal summarises endpoint metadata and does not inspect packet contents."
+    }
+
+    public func behaviourSignals(records: [AppConnectionRecord]) -> [BehaviourSignal] {
+        var signals = periodicSignals(records: records)
+        for (process, values) in Dictionary(grouping: records.filter { record in
+            record.remoteAddress?.contains(":") == true && !record.remoteAddress!.lowercased().hasPrefix("fe80:")
+        }, by: \.appBundleIdentifier) {
+            signals.append(BehaviourSignal(id: "ipv6:\(process)", kind: .ipv6, process: process,
+                                           detail: "\(values.count) retained connection observations used non-link-local IPv6.", confidence: 100))
+        }
+        signals.sort { $0.confidence > $1.confidence }
+        return signals
+    }
+
+    public func detectionCapabilities(provider: AppProviderCapabilities) -> [DetectionCapability] {
+        [
+            DetectionCapability(id: "Periodic beacon detection", available: true, detail: "Uses repeated endpoint timestamps; it is a pattern hint, not a malware verdict."),
+            DetectionCapability(id: "IPv6 activity", available: true, detail: "Uses retained remote-address metadata."),
+            DetectionCapability(id: "Upload spike detection", available: provider.suppliesPerFlowBytes, detail: provider.suppliesPerFlowBytes ? "Available from measured per-flow byte counters." : "Needs a future provider with measured per-flow byte counters."),
+            DetectionCapability(id: "Wake and idle attribution", available: false, detail: "Needs durable power-state events correlated with connection observations."),
+            DetectionCapability(id: "VPN and DNS leak detection", available: false, detail: "Needs route, interface, and DNS resolver attribution from a future system provider."),
+            DetectionCapability(id: "Executable change detection", available: false, detail: "Needs durable executable identity, signature, and hash snapshots."),
+            DetectionCapability(id: "Inbound port-scan detection", available: false, detail: "Needs inbound attempt telemetry; established-socket polling cannot prove scans.")
+        ]
+    }
+
+    private func periodicSignals(records: [AppConnectionRecord]) -> [BehaviourSignal] {
+        let grouped = Dictionary(grouping: records.filter { $0.remoteAddress != nil }) { "\($0.appBundleIdentifier)|\($0.remoteAddress!)|\($0.remotePort ?? "")" }
+        return grouped.compactMap { key, values in
+            let times = values.map(\.timestamp).sorted()
+            guard times.count >= 5 else { return nil }
+            let intervals = zip(times.dropFirst(), times).map { $0.timeIntervalSince($1) }.filter { $0 >= 10 }
+            guard intervals.count >= 4 else { return nil }
+            let average = intervals.reduce(0, +) / Double(intervals.count)
+            let deviation = intervals.map { abs($0 - average) }.reduce(0, +) / Double(intervals.count)
+            let regularity = max(0, 1 - deviation / max(average, 1))
+            guard regularity >= 0.85 else { return nil }
+            let process = key.split(separator: "|", maxSplits: 1).first.map(String.init) ?? "Unknown"
+            let interval = Duration.seconds(average).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated))
+            return BehaviourSignal(id: "beacon:\(key)", kind: .beacon, process: process,
+                                   detail: "Repeated the same endpoint about every \(interval) across \(times.count) observations.", confidence: Int(regularity * 100))
+        }
     }
 
     private func ranked(_ values: [String], limit: Int) -> [String] {

@@ -5,6 +5,7 @@ public struct NetworkIntelligenceView: View {
     @ObservedObject private var viewModel: ApplicationNetworkViewModel
     @State private var section = IntelligenceSection.journal
     @State private var searchText = ""
+    @State private var quietMode = false
 
     public init(viewModel: ApplicationNetworkViewModel) { self.viewModel = viewModel }
 
@@ -19,6 +20,7 @@ public struct NetworkIntelligenceView: View {
                     }
                     Spacer()
                     Toggle("Privacy Mode", isOn: $viewModel.privacyModeEnabled).toggleStyle(.switch)
+                    Toggle("Quiet Mode", isOn: $quietMode).toggleStyle(.switch)
                     TextField("Search", text: $searchText).textFieldStyle(.roundedBorder).frame(width: 240)
                 }
                 Picker("Section", selection: $section) {
@@ -33,6 +35,7 @@ public struct NetworkIntelligenceView: View {
     @ViewBuilder private var content: some View {
         let analyzer = NetworkIntelligenceAnalyzer()
         switch section {
+        case .overview: overview(analyzer)
         case .journal: journal(analyzer)
         case .passports: passports(analyzer)
         case .memory: memory(analyzer)
@@ -40,6 +43,26 @@ public struct NetworkIntelligenceView: View {
         case .domains: domains(analyzer)
         case .calendar: calendar(analyzer)
         case .signals: signals(analyzer)
+        }
+    }
+
+    private func overview(_ analyzer: NetworkIntelligenceAnalyzer) -> some View {
+        let ratings = analyzer.internetRatings(records: viewModel.timelineHistory).filter { matches($0.id) }
+        let fingerprint = analyzer.fingerprint(records: viewModel.timelineHistory)
+        let signals = analyzer.behaviourSignals(records: viewModel.timelineHistory)
+        return ScrollView {
+            VStack(spacing: 12) {
+                if !quietMode || !signals.isEmpty {
+                    GlassCard { VStack(alignment: .leading, spacing: 8) { Label("Explain My Computer", systemImage: "text.bubble").font(.headline); Text(analyzer.explainMyComputer(records: viewModel.timelineHistory)).textSelection(.enabled); Text("Generated locally without an AI or cloud service.").font(.caption).foregroundStyle(.secondary) } }
+                    GlassCard { HStack { VStack(alignment: .leading) { Text("Internet Fingerprint").font(.headline); Text(fingerprint.currentSignature).font(.caption.monospaced()).foregroundStyle(.secondary) }; Spacer(); Text(fingerprint.similarityPercent.map { "\($0)% like yesterday" } ?? "Needs two days").font(.title3.monospacedDigit()) } }
+                }
+                if quietMode && signals.isEmpty { ContentUnavailableView("Quiet", systemImage: "moon.zzz", description: Text("No supported changes or behavioural signals are currently visible.")) }
+                if !quietMode {
+                    ForEach(ratings) { rating in
+                        GlassCard { VStack(alignment: .leading, spacing: 6) { HStack { Text(maskProcess(rating.id)).font(.headline); Spacer(); Text("\(rating.score)/100 · \(rating.label)").font(.headline.monospacedDigit()) }; ProgressView(value: Double(rating.score), total: 100).tint(rating.score >= 70 ? .green : .orange); Text("Encrypted-service observations \(rating.encryptedPercent)% · Entropy \(rating.destinationEntropy.formatted(.number.precision(.fractionLength(2)))) · Noise \(rating.observationsPerHour.formatted(.number.precision(.fractionLength(1))))/hour").font(.caption); Text(rating.explanation).font(.caption2).foregroundStyle(.secondary) } }
+                    }
+                }
+            }
         }
     }
 
@@ -144,4 +167,4 @@ public struct NetworkIntelligenceView: View {
     private func maskProcess(_ value: String) -> String { PrivacyRedactor.process(value, enabled: viewModel.privacyModeEnabled) }
 }
 
-private enum IntelligenceSection: String, CaseIterable, Identifiable { case journal = "Journal", passports = "Passports", memory = "Network Memory", ports = "Ports", domains = "Domains", calendar = "Calendar", signals = "Signals"; var id: String { rawValue } }
+private enum IntelligenceSection: String, CaseIterable, Identifiable { case overview = "Overview", journal = "Journal", passports = "Passports", memory = "Network Memory", ports = "Ports", domains = "Domains", calendar = "Calendar", signals = "Signals"; var id: String { rawValue } }

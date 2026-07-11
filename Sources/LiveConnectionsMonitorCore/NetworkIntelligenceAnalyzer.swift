@@ -37,6 +37,11 @@ public struct BehaviourSignal: Identifiable, Sendable, Hashable {
     public let confidence: Int
 }
 public struct DetectionCapability: Identifiable, Sendable, Hashable { public let id: String; public let available: Bool; public let detail: String }
+public struct ApplicationInternetRating: Identifiable, Sendable, Hashable {
+    public let id: String; public let score: Int; public let label: String; public let encryptedPercent: Int
+    public let destinationEntropy: Double; public let observationsPerHour: Double; public let explanation: String
+}
+public struct NetworkFingerprint: Sendable, Hashable { public let similarityPercent: Int?; public let currentSignature: String; public let previousSignature: String? }
 
 public struct NetworkIntelligenceAnalyzer: Sendable {
     private let calendar = Calendar.current
@@ -128,6 +133,53 @@ public struct NetworkIntelligenceAnalyzer: Sendable {
             DetectionCapability(id: "Executable change detection", available: false, detail: "Needs durable executable identity, signature, and hash snapshots."),
             DetectionCapability(id: "Inbound port-scan detection", available: false, detail: "Needs inbound attempt telemetry; established-socket polling cannot prove scans.")
         ]
+    }
+
+    public func internetRatings(records: [AppConnectionRecord]) -> [ApplicationInternetRating] {
+        Dictionary(grouping: records, by: \.appBundleIdentifier).map { process, values in
+            let destinations = values.compactMap(\.remoteAddress)
+            let counts = Dictionary(grouping: destinations, by: { $0 }).mapValues(\.count)
+            let entropy = shannonEntropy(Array(counts.values))
+            let encrypted = values.filter { ["443", "853", "993", "995", "465"].contains($0.remotePort ?? "") }.count
+            let encryptedPercent = values.isEmpty ? 0 : Int(Double(encrypted) / Double(values.count) * 100)
+            let countries = Set(values.compactMap(\.countryCode)).count
+            let unusualPenalty = min(25, max(0, countries - 5) * 3) + min(20, Int(entropy * 3))
+            let consistencyBonus = min(20, values.count / 20)
+            let score = min(100, max(0, 55 + encryptedPercent / 4 + consistencyBonus - unusualPenalty))
+            let span = max(3600, (values.map(\.timestamp).max() ?? Date()).timeIntervalSince(values.map(\.timestamp).min() ?? Date()))
+            let rate = Double(values.count) / (span / 3600)
+            let label = score >= 85 ? "Excellent" : score >= 70 ? "Good" : score >= 50 ? "Variable" : "Review"
+            return ApplicationInternetRating(id: process, score: score, label: label, encryptedPercent: encryptedPercent,
+                destinationEntropy: entropy, observationsPerHour: rate,
+                explanation: "Based on endpoint diversity, resolved-country spread, conventional encrypted-service ports, observation volume, and historical consistency. It does not inspect content or certify trust.")
+        }.sorted { $0.score > $1.score }
+    }
+
+    public func fingerprint(records: [AppConnectionRecord], now: Date = Date()) -> NetworkFingerprint {
+        let calendar = Calendar.current; let today = calendar.startOfDay(for: now); let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+        let current = records.filter { $0.timestamp >= today && $0.timestamp <= now }
+        let previous = records.filter { $0.timestamp >= yesterday && $0.timestamp < today }
+        let a = signatureTokens(current), b = signatureTokens(previous)
+        let union = a.union(b); let similarity = union.isEmpty || a.isEmpty || b.isEmpty ? nil : Int(Double(a.intersection(b).count) / Double(union.count) * 100)
+        return NetworkFingerprint(similarityPercent: similarity, currentSignature: stableSignature(a), previousSignature: b.isEmpty ? nil : stableSignature(b))
+    }
+
+    public func explainMyComputer(records: [AppConnectionRecord], now: Date = Date(), interval: TimeInterval = 60) -> String {
+        let recent = records.filter { $0.timestamp >= now.addingTimeInterval(-interval) && $0.timestamp <= now }
+        guard !recent.isEmpty else { return "GlossWire did not retain any connection observations during the selected one-minute explanation window." }
+        let apps = Dictionary(grouping: recent, by: \.appBundleIdentifier).map { ($0.key, $0.value.count) }.sorted { $0.1 > $1.1 }
+        let top = apps.prefix(3).map { "\($0.0) (\($0.1))" }.joined(separator: ", ")
+        let remotes = Set(recent.compactMap(\.remoteAddress)).count, ipv6 = recent.filter { $0.remoteAddress?.contains(":") == true }.count
+        let blocked = recent.filter { $0.ruleAction == .blocked || $0.ruleAction == .manualBlock }.count
+        return "During the last minute, GlossWire retained \(recent.count) connection observations from \(apps.count) processes to \(remotes) remote addresses. The most active were \(top). \(ipv6) observations used IPv6 and \(blocked) carried a blocked rule outcome. This local explanation uses endpoint metadata only and does not inspect traffic contents or certify destination safety."
+    }
+
+    private func shannonEntropy(_ counts: [Int]) -> Double { let total = Double(counts.reduce(0, +)); guard total > 0 else { return 0 }; return -counts.reduce(0) { sum, count in let p = Double(count) / total; return sum + p * log2(p) } }
+    private func signatureTokens(_ records: [AppConnectionRecord]) -> Set<String> { Set(records.flatMap { ["app:\($0.appBundleIdentifier)", "port:\($0.remotePort ?? "")", "country:\($0.countryCode ?? "")"] }) }
+    private func stableSignature(_ tokens: Set<String>) -> String {
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for byte in tokens.sorted().joined(separator: "|").utf8 { hash = (hash ^ UInt64(byte)) &* 1_099_511_628_211 }
+        return String(format: "%016llx", hash)
     }
 
     private func periodicSignals(records: [AppConnectionRecord]) -> [BehaviourSignal] {

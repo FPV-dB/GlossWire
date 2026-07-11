@@ -23,6 +23,22 @@ private func intelRecord(_ id: String, day: TimeInterval, app: String, remote: S
     #expect(coverage.first { $0.id == "Inbound port-scan detection" }?.available == false)
 }
 
+@Test func ratingsFingerprintAndLocalExplanationUseRetainedEvidence() {
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let records = (0..<6).map { index in
+        AppConnectionRecord(id: "r\(index)", timestamp: now.addingTimeInterval(Double(index - 5) * 10), appBundleIdentifier: "browser", pid: 1,
+                            direction: .outbound, protocolKind: .tcp, localAddress: "127.0.0.1", localPort: "1",
+                            remoteAddress: "1.1.1.\(index % 2)", remotePort: "443", remoteHostname: nil, countryCode: "AU", state: "ESTABLISHED",
+                            bytesSent: nil, bytesReceived: nil, duration: 0, ruleAction: .observed)
+    }
+    let analyzer = NetworkIntelligenceAnalyzer()
+    let rating = analyzer.internetRatings(records: records).first
+    #expect(rating?.encryptedPercent == 100)
+    #expect(rating?.destinationEntropy ?? 0 > 0)
+    #expect(analyzer.explainMyComputer(records: records, now: now).contains("browser"))
+    #expect(analyzer.fingerprint(records: records, now: now).currentSignature.count == 16)
+}
+
 @Test func passportsAndNetworkMemoryAggregateRetainedContext() {
     let records = [
         intelRecord("1", day: 1_000, app: "Safari", remote: "203.0.113.1", port: "443", host: "api.example.com"),

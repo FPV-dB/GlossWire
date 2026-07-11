@@ -28,6 +28,7 @@ The app is intentionally conservative. It uses dedicated PF anchors, shows gener
 - Exportable network-session recordings from retained process/endpoint metadata.
 - Timeline analytics: process heatmap, country activity, connection lifetime histogram, and process/service relationships.
 - Passive **What Changed?** hourly comparisons and observation-only LAN topology/service hints.
+- Local **Network Intelligence** views for a daily journal, application passports, accumulated IP context, port usage, domain-family grouping, and an activity calendar.
 - Presentation-safe Privacy Mode masking for timeline process names, addresses, hostnames, and paths.
 - Plain-English **Why is this connected?** explanations based on visible process, protocol, port, direction, and state metadata.
 - Menu bar download/upload throughput display.

@@ -1,0 +1,113 @@
+import Charts
+import SwiftUI
+
+public struct NetworkIntelligenceView: View {
+    @ObservedObject private var viewModel: ApplicationNetworkViewModel
+    @State private var section = IntelligenceSection.journal
+    @State private var searchText = ""
+
+    public init(viewModel: ApplicationNetworkViewModel) { self.viewModel = viewModel }
+
+    public var body: some View {
+        ZStack {
+            AppBackground()
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text("Network Intelligence").font(.title2.weight(.semibold))
+                        Text("Context accumulated from retained endpoint metadata.").foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("Privacy Mode", isOn: $viewModel.privacyModeEnabled).toggleStyle(.switch)
+                    TextField("Search", text: $searchText).textFieldStyle(.roundedBorder).frame(width: 240)
+                }
+                Picker("Section", selection: $section) {
+                    ForEach(IntelligenceSection.allCases) { item in Text(item.rawValue).tag(item) }
+                }.pickerStyle(.segmented)
+                content
+            }.padding(16)
+        }
+        .onAppear { viewModel.start(); Task { await viewModel.reloadTimeline() } }
+    }
+
+    @ViewBuilder private var content: some View {
+        let analyzer = NetworkIntelligenceAnalyzer()
+        switch section {
+        case .journal: journal(analyzer)
+        case .passports: passports(analyzer)
+        case .memory: memory(analyzer)
+        case .ports: ports(analyzer)
+        case .domains: domains(analyzer)
+        case .calendar: calendar(analyzer)
+        }
+    }
+
+    private func journal(_ analyzer: NetworkIntelligenceAnalyzer) -> some View {
+        ScrollView {
+            GlassCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("Network Journal", systemImage: "book.pages").font(.title3.weight(.semibold))
+                    Text(analyzer.journal(records: viewModel.timelineHistory)).font(.body).textSelection(.enabled)
+                    Text("Generated locally. No telemetry is sent to an AI service.").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private func passports(_ analyzer: NetworkIntelligenceAnalyzer) -> some View {
+        let rows = analyzer.passports(records: viewModel.timelineHistory).filter { matches($0.id) }
+        return List(rows) { item in
+            VStack(alignment: .leading, spacing: 6) {
+                HStack { Text(maskProcess(item.id)).font(.headline); Spacer(); Text("Confidence \(item.confidence)%").font(.caption.monospacedDigit()) }
+                Text("First online \(item.firstOnline.formatted(date: .abbreviated, time: .shortened)) · Last \(item.lastOnline.formatted(date: .abbreviated, time: .shortened)) · \(item.daysSeen) days seen")
+                Text("\(item.observations.formatted()) observations · \(item.uniqueDestinations) destinations · Typical/day \(item.typicalConnectionsPerDay.lowerBound)–\(item.typicalConnectionsPerDay.upperBound)")
+                Text("Ports: \(item.typicalPorts.joined(separator: ", "))  Countries: \(item.typicalCountries.isEmpty ? "Unresolved" : item.typicalCountries.joined(separator: ", "))")
+            }.font(.caption).padding(.vertical, 5)
+        }
+    }
+
+    private func memory(_ analyzer: NetworkIntelligenceAnalyzer) -> some View {
+        let rows = analyzer.networkMemory(records: viewModel.timelineHistory).filter { matches($0.id) || $0.processes.contains(where: matches) }
+        return List(rows) { item in
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(PrivacyRedactor.address(item.id, enabled: viewModel.privacyModeEnabled)).font(.headline.monospaced())
+                    Text("First contacted \(item.firstSeen.formatted(date: .abbreviated, time: .shortened)) · Last \(item.lastSeen.formatted(date: .abbreviated, time: .shortened))")
+                    Text("Seen on \(item.daysSeen) days · \(item.observations) observations · Apps: \(item.processes.map(maskProcess).joined(separator: ", "))")
+                    Text("Ports: \(item.ports.joined(separator: ", "))")
+                }.font(.caption)
+                Spacer()
+                Text(item.totalBytes.map { ByteCountFormatter.string(fromByteCount: Int64(clamping: $0), countStyle: .binary) } ?? "Bytes unavailable").font(.caption.monospacedDigit())
+            }.padding(.vertical, 5)
+        }
+    }
+
+    private func ports(_ analyzer: NetworkIntelligenceAnalyzer) -> some View {
+        let rows = analyzer.ports(records: viewModel.timelineHistory).filter { matches($0.id) || matches($0.service) }
+        return Chart(rows.prefix(20)) { item in
+            BarMark(x: .value("Observations", item.count), y: .value("Port", "\(item.id) · \(item.service)"))
+                .foregroundStyle(.cyan.gradient)
+                .annotation(position: .trailing) { Text(item.count.formatted()).font(.caption2) }
+        }.padding(12)
+    }
+
+    private func domains(_ analyzer: NetworkIntelligenceAnalyzer) -> some View {
+        let rows = analyzer.domainFamilies(records: viewModel.timelineHistory).filter { matches($0.id) }
+        return List(rows) { item in
+            HStack { Text(viewModel.privacyModeEnabled ? "hidden.example" : item.id).font(.headline.monospaced()); Spacer(); Text("\(item.count) observations · \(item.hosts) hosts").font(.caption.monospacedDigit()) }
+        }
+    }
+
+    private func calendar(_ analyzer: NetworkIntelligenceAnalyzer) -> some View {
+        let rows = analyzer.calendarActivity(records: viewModel.timelineHistory)
+        return Chart(rows) { item in
+            RectangleMark(x: .value("Day", item.day, unit: .day), y: .value("Week", Calendar.current.component(.weekOfYear, from: item.day)))
+                .foregroundStyle(by: .value("Activity", item.observations))
+        }.chartForegroundStyleScale(range: Gradient(colors: [.gray.opacity(0.2), .green])).padding(12)
+    }
+
+    private func matches(_ value: String) -> Bool { searchText.isEmpty || value.localizedCaseInsensitiveContains(searchText) }
+    private func maskProcess(_ value: String) -> String { PrivacyRedactor.process(value, enabled: viewModel.privacyModeEnabled) }
+}
+
+private enum IntelligenceSection: String, CaseIterable, Identifiable { case journal = "Journal", passports = "Passports", memory = "Network Memory", ports = "Ports", domains = "Domains", calendar = "Calendar"; var id: String { rawValue } }

@@ -44,6 +44,8 @@ public struct FirewallDashboardView: View {
                     ApplicationsNetworkView(viewModel: applicationNetworkViewModel)
                 case .timeline:
                     ConnectionTimelineView(viewModel: applicationNetworkViewModel)
+                case .intelligence:
+                    NetworkIntelligenceView(viewModel: applicationNetworkViewModel)
                 case .blockedIPs:
                     blockedIPs
                 case .blocklists:
@@ -187,6 +189,7 @@ public struct FirewallDashboardView: View {
                 sidebarRow(.liveConnections)
                 sidebarRow(.applications)
                 sidebarRow(.timeline)
+                sidebarRow(.intelligence)
             }
 
             Section("PROTECTION") {

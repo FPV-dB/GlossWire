@@ -63,6 +63,19 @@ The Timeline view selector provides:
 
 Enable **Privacy Mode** before presenting or capturing the Timeline. It masks process identifiers, public addresses, hostnames, and paths in supported views without changing stored records.
 
+## Network Intelligence
+
+The **Intelligence** page turns retained connection observations into local summaries:
+
+- **Journal:** a human-readable daily account of observed applications, destinations, ports, and countries.
+- **Passports:** first/last seen dates, usual destinations, countries, ports, and observation counts for each process.
+- **Network Memory:** accumulated context for each destination, including which processes used it and how often it was observed.
+- **Ports:** a ranked chart of observed destination-port usage.
+- **Domains:** related hostnames collapsed into domain-family summaries.
+- **Calendar:** a day-by-day activity heatmap based on retained observations.
+
+Search and Privacy Mode apply to the intelligence views. These summaries describe connection metadata GlossWire has actually retained; they do not inspect payloads, infer packet counts, or claim traffic-byte totals when those measurements are unavailable. Domain-family grouping is a display heuristic and is not a public-suffix classification service.
+
 ### Nmap for a Selected IP
 
 Select a connection and use the Nmap menu in the toolbar or inspector for a Quick Port, Service/Version, or OS Detection scan. The row context menu offers the same actions. Results open in the existing Nmap workbench, where they can be stopped, reviewed, compared with history, or exported. The full workbench is prefilled with the selected remote IP. Nmap scanning is restricted to local/private targets by the app's existing target safety check.

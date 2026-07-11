@@ -13,6 +13,7 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - Passive hourly **What Changed?** comparisons.
 - Observation-only LAN topology with common-service hints.
 - Timeline Privacy Mode masking.
+- Network Intelligence dashboard with local Journal, application Passports, Network Memory, port analytics, domain-family grouping, and an activity calendar.
 - Throughput graphs and per-IP throughput history.
 - DNSBL, ASN, RDAP, reverse DNS, Tor checks, and 0–100 IP safety scoring.
 - Explicit local/private selected-target Nmap scans with history, comparison, favourites, and export.

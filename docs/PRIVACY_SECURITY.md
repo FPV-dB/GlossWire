@@ -19,6 +19,7 @@ Persisted data may include:
 - Trusted allowlist entries.
 - Firewall event logs.
 - Settings.
+- Whether reputation-matched live connection blocking is enabled.
 - Application network history.
 
 Throughput and Data Milestone Sound preferences are stored in `UserDefaults`.
@@ -73,6 +74,8 @@ Connection Manager does not implement:
 Users are responsible for the blocklist and country-range data they import. Imported data can be overly broad or inaccurate.
 
 Country-level blocking can disrupt legitimate services, including CDNs, cloud services, software updates, game servers, and APIs. Always preview rules and keep recovery access available.
+
+Reputation-matched live connection blocking is opt-in. When enabled, matching observed remote IPs are added to the generated app-managed PF rule preview. Those rules still require the normal review and administrator-approved apply flow before they are active.
 
 ## Google Range Blocking
 

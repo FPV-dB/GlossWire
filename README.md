@@ -12,6 +12,7 @@ The app is intentionally conservative. It uses dedicated PF anchors, shows gener
 
 - [User Guide](docs/USER_GUIDE.md)
 - [Privacy And Security Notes](docs/PRIVACY_SECURITY.md)
+- [Screenshots](docs/SCREENSHOTS.md)
 - [Google Filtering Audit](docs/GoogleFilteringAudit.md)
 
 ## Highlights
@@ -23,6 +24,7 @@ The app is intentionally conservative. It uses dedicated PF anchors, shows gener
 - Process-aware application network activity view.
 - Manual IP and CIDR blocking.
 - Imported blocklists with validation and duplicate handling.
+- Optional blocking of live connections that match enabled local reputation blocklists.
 - Trusted allowlist entries that override generated block rules.
 - Opt-in country/CIDR blocking from user-supplied data.
 - Opt-in known Google and Google Cloud IP range blocking from Google's published feeds.
@@ -218,6 +220,20 @@ Import rules:
 - Invalid entries are skipped and counted.
 - Duplicate entries are removed.
 - Private LAN ranges import with warnings.
+
+### Reputation-Matched Live Connection Blocking
+
+Enabled reputation blocklists are checked locally against live connection remote IPs. By default, matches are informational. In Settings, the **Block live connections that match enabled Block Lists** option can add matching live connection remote IPs to the generated app-managed PF rules.
+
+This option is deliberately gated:
+
+- It only uses enabled local blocklists.
+- It adds remote IP rules to the generated preview.
+- It still requires the normal PF rule preview and administrator-approved apply flow.
+- It deduplicates repeated remote IPs before generating rules.
+- It can be turned off without deleting imported blocklists or logs.
+
+![Reputation filter options and generated rule preview](docs/screenshots/reputation-filter-options-redacted.png)
 
 ## Known Google Range Blocking
 
@@ -456,6 +472,3 @@ This project is open-source/source-available for personal and non-commercial use
 You are free to copy, study, and modify it as you please, as long as you credit **FPV-dB**.
 
 You agree not to sell the app, sell modified versions, sell bundled copies, or use any part of this project in a product or service offered for sale.
-## Hire / Contact
-
-FPV-dB is available for hire for macOS, SwiftUI, RF tooling, drone software, mapping, and field-operations utilities. For work enquiries, contact ex.dee.emm@gmail.com.

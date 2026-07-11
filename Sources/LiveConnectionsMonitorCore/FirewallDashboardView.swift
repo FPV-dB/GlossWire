@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 public struct FirewallDashboardView: View {
     @ObservedObject private var viewModel: FirewallDashboardViewModel
+    @ObservedObject private var reputationStore = ReputationBlockListStore.shared
     @EnvironmentObject private var applicationNetworkViewModel: ApplicationNetworkViewModel
     @EnvironmentObject private var throughputMonitor: NetworkThroughputMonitor
     @State private var showingImporter = false
@@ -79,6 +80,12 @@ public struct FirewallDashboardView: View {
         .onAppear {
             viewModel.liveConnectionsViewModel.start()
             viewModel.reload()
+        }
+        .onReceive(viewModel.liveConnectionsViewModel.$connections) { _ in
+            viewModel.refreshRulePreview()
+        }
+        .onReceive(reputationStore.$rules) { _ in
+            viewModel.refreshRulePreview()
         }
         .alert("Apply PF Rules?", isPresented: $viewModel.pendingApplyConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -624,7 +631,10 @@ public struct FirewallLiveConnectionsPage: View {
                     detail("Last seen", Self.dateTimeFormatter.string(from: connection.lastSeen))
                 }
                 InspectorSection("Block List Matches", systemImage: "exclamationmark.shield") {
-                    ReputationMatchesView(matches: reputationStore.matches(for: connection))
+                    ReputationMatchesView(
+                        matches: reputationStore.matches(for: connection),
+                        blockingEnabled: viewModel.settings.blockReputationMatchedConnections
+                    )
                 }
                 IPThroughputPanel(viewModel: throughputViewModel)
                 InspectorSection("Actions", systemImage: "scope") {
@@ -970,145 +980,156 @@ public struct FirewallSettingsView: View {
     @AppStorage("visual.highContrastMode") private var highContrastMode = false
 
     public var body: some View {
-        Form {
-            Section("Startup") {
-                Toggle("Launch Connection Manager on boot", isOn: Binding(
-                    get: { viewModel.settings.launchAtLogin },
-                    set: { viewModel.setLaunchAtLogin($0) }
-                ))
-                LabeledContent("Status", value: viewModel.loginItemStatus)
-                LabeledContent("Last startup", value: viewModel.settings.lastStartupAt.map(Self.dateFormatter.string(from:)) ?? "-")
-            }
+        ScrollView {
+            Form {
+                Section("Startup") {
+                    Toggle("Launch Connection Manager on boot", isOn: Binding(
+                        get: { viewModel.settings.launchAtLogin },
+                        set: { viewModel.setLaunchAtLogin($0) }
+                    ))
+                    LabeledContent("Status", value: viewModel.loginItemStatus)
+                    LabeledContent("Last startup", value: viewModel.settings.lastStartupAt.map(Self.dateFormatter.string(from:)) ?? "-")
+                }
 
-            Section("Startup Protection") {
-                Text("This feature can affect network connectivity during startup. Incorrect firewall rules may temporarily prevent internet access until corrected.")
-                    .foregroundStyle(.orange)
-                Picker("Startup Mode", selection: $viewModel.settings.startupMode) {
+                Section("Startup Protection") {
+                    Text("This feature can affect network connectivity during startup. Incorrect firewall rules may temporarily prevent internet access until corrected.")
+                        .foregroundStyle(.orange)
+                    Picker("Startup Mode", selection: $viewModel.settings.startupMode) {
+                        ForEach(StartupProtectionMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
                     ForEach(StartupProtectionMode.allCases) { mode in
-                        Text(mode.rawValue).tag(mode)
+                        Text("\(mode.rawValue): \(mode.detail)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    LabeledContent("PF Enabled", value: viewModel.startupStatus.pfEnabled)
+                    LabeledContent("Startup Anchor Installed", value: viewModel.startupStatus.startupAnchorInstalled ? "Yes" : "No")
+                    LabeledContent("Rules Loaded", value: viewModel.startupStatus.rulesLoaded ? "Yes" : "No")
+                    LabeledContent("Last Synchronization", value: viewModel.startupStatus.lastSynchronization.map(Self.dateFormatter.string(from:)) ?? "-")
+                    HStack {
+                        Button("Apply Startup Protection") {
+                            viewModel.requestStartupProtectionApply()
+                        }
+                        Button("Rollback Startup Protection") {
+                            Task { await viewModel.rollbackStartupProtection() }
+                        }
+                        Button("Refresh Status") {
+                            Task { await viewModel.refreshStartupStatus() }
+                        }
                     }
                 }
-                ForEach(StartupProtectionMode.allCases) { mode in
-                    Text("\(mode.rawValue): \(mode.detail)")
+
+                Section("Firewall") {
+                    Toggle("Auto-apply imported blocklists", isOn: $viewModel.settings.autoApplyImportedBlocklists)
+                    Toggle("Block live connections that match enabled Block Lists", isOn: Binding(
+                        get: { viewModel.settings.blockReputationMatchedConnections },
+                        set: { viewModel.setReputationBlockingEnabled($0) }
+                    ))
+                    Text("When enabled, matching live connections are added to the app-managed PF rules by remote IP. Review the Generated PF Rules screen and apply the anchor to activate changes.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Toggle("Confirm before applying firewall changes", isOn: $viewModel.settings.confirmBeforeApplying)
+                    Toggle("Backup previous app anchor file before rewriting", isOn: $viewModel.settings.backupAnchorBeforeRewrite)
+                    TextField("PF anchor path", text: $viewModel.settings.anchorPath)
+                    TextField("App anchor name", text: $viewModel.settings.anchorName)
+                }
+
+                Section("Known Provider Blocking") {
+                    Toggle("Block all published Google and Google Cloud IP ranges", isOn: Binding(
+                        get: { viewModel.settings.blockKnownGoogleConnections },
+                        set: { viewModel.requestGoogleBlocking($0) }
+                    ))
+                    Text("Uses Google's official goog.json and cloud.json feeds. This is IP-range blocking, not hostname filtering, and includes customer-hosted Google Cloud services.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    LabeledContent("Managed ranges", value: viewModel.googleRangeCount.formatted())
+                    LabeledContent("Last refreshed", value: viewModel.settings.googleRangesLastUpdatedAt.map(Self.dateFormatter.string(from:)) ?? "Never")
+                    if let progress = viewModel.googleBlockingProgress {
+                        ProgressView(progress)
+                    }
+                    Button("Refresh Google Ranges") {
+                        Task { await viewModel.refreshGoogleRanges() }
+                    }
+                    .disabled(!viewModel.settings.blockKnownGoogleConnections || viewModel.googleBlockingProgress != nil)
+                }
+
+                Section("Live Connections") {
+                    Picker("Refresh interval", selection: $viewModel.settings.refreshInterval) {
+                        ForEach(RefreshInterval.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                }
+
+                Section("Menu Bar Throughput") {
+                    Toggle("Show live throughput in the menu bar", isOn: $throughputMonitor.displayEnabled)
+                    Picker("Rate unit", selection: $throughputMonitor.rateUnit) {
+                        ForEach(ThroughputRateUnit.allCases) { unit in
+                            Text(unit.label).tag(unit)
+                        }
+                    }
+                    Picker("Update interval", selection: $throughputMonitor.updateInterval) {
+                        ForEach(ThroughputUpdateInterval.allCases) { interval in
+                            Text(interval.label).tag(interval)
+                        }
+                    }
+                    Picker("Display mode", selection: $throughputMonitor.displayMode) {
+                        ForEach(ThroughputDisplayMode.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    Text("Measures byte-counter deltas across active non-loopback interfaces. Choose auto-scaling or a fixed KB/MB/GB/Kb/Mb/Gb display unit for the menu bar and popover.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                LabeledContent("PF Enabled", value: viewModel.startupStatus.pfEnabled)
-                LabeledContent("Startup Anchor Installed", value: viewModel.startupStatus.startupAnchorInstalled ? "Yes" : "No")
-                LabeledContent("Rules Loaded", value: viewModel.startupStatus.rulesLoaded ? "Yes" : "No")
-                LabeledContent("Last Synchronization", value: viewModel.startupStatus.lastSynchronization.map(Self.dateFormatter.string(from:)) ?? "-")
-                HStack {
-                    Button("Apply Startup Protection") {
-                        viewModel.requestStartupProtectionApply()
+
+                DataMilestoneSoundsSettingsView(manager: throughputMonitor.dataMilestoneSoundManager)
+
+                BlockListsSettingsView()
+
+                Section("Lookups") {
+                    Picker("Default lookup provider", selection: $viewModel.settings.defaultLookupProviderID) {
+                        ForEach(LookupProvider.presets) { provider in
+                            Text("\(provider.name) - \(provider.category.rawValue)").tag(provider.id)
+                        }
                     }
-                    Button("Rollback Startup Protection") {
-                        Task { await viewModel.rollbackStartupProtection() }
-                    }
-                    Button("Refresh Status") {
-                        Task { await viewModel.refreshStartupStatus() }
-                    }
+                    Toggle("Do not show GeoIP/reputation lookup privacy warning again", isOn: $viewModel.settings.suppressLookupPrivacyWarning)
+                    Toggle("Do not show traceroute warning again", isOn: $viewModel.settings.suppressTracerouteWarning)
+                }
+
+                Section("Nmap") {
+                    TextField("Custom nmap path", text: $viewModel.settings.nmapPath)
+                        .font(.system(.body, design: .monospaced))
+                    Text("Leave blank to auto-detect /opt/homebrew/bin/nmap, /usr/local/bin/nmap, or /usr/bin/nmap.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                IPSafetySettingsView()
+
+                IPThroughputSettingsView()
+
+                Section("Visual Appearance") {
+                    Toggle("Enable gradient background", isOn: $enableGradientBackground)
+                    Toggle("Enable glass panels", isOn: $enableGlassPanels)
+                    Toggle("Enable row hover glow", isOn: $enableRowHoverGlow)
+                    Toggle("Enable traffic sparklines", isOn: $enableTrafficSparklines)
+                    Toggle("Compact mode", isOn: $compactMode)
+                    Toggle("Reduce animations", isOn: $reduceAnimations)
+                    Toggle("High contrast mode", isOn: $highContrastMode)
+                    Text("These settings are visual only and do not change firewall, logging, menu bar, or Nmap behavior.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button("Save Settings") {
+                    viewModel.saveSettings()
                 }
             }
-
-            Section("Firewall") {
-                Toggle("Auto-apply imported blocklists", isOn: $viewModel.settings.autoApplyImportedBlocklists)
-                Toggle("Confirm before applying firewall changes", isOn: $viewModel.settings.confirmBeforeApplying)
-                Toggle("Backup previous app anchor file before rewriting", isOn: $viewModel.settings.backupAnchorBeforeRewrite)
-                TextField("PF anchor path", text: $viewModel.settings.anchorPath)
-                TextField("App anchor name", text: $viewModel.settings.anchorName)
-            }
-
-            Section("Known Provider Blocking") {
-                Toggle("Block all published Google and Google Cloud IP ranges", isOn: Binding(
-                    get: { viewModel.settings.blockKnownGoogleConnections },
-                    set: { viewModel.requestGoogleBlocking($0) }
-                ))
-                Text("Uses Google's official goog.json and cloud.json feeds. This is IP-range blocking, not hostname filtering, and includes customer-hosted Google Cloud services.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                LabeledContent("Managed ranges", value: viewModel.googleRangeCount.formatted())
-                LabeledContent("Last refreshed", value: viewModel.settings.googleRangesLastUpdatedAt.map(Self.dateFormatter.string(from:)) ?? "Never")
-                if let progress = viewModel.googleBlockingProgress {
-                    ProgressView(progress)
-                }
-                Button("Refresh Google Ranges") {
-                    Task { await viewModel.refreshGoogleRanges() }
-                }
-                .disabled(!viewModel.settings.blockKnownGoogleConnections || viewModel.googleBlockingProgress != nil)
-            }
-
-            Section("Live Connections") {
-                Picker("Refresh interval", selection: $viewModel.settings.refreshInterval) {
-                    ForEach(RefreshInterval.allCases) { Text($0.rawValue).tag($0) }
-                }
-            }
-
-            Section("Menu Bar Throughput") {
-                Toggle("Show live throughput in the menu bar", isOn: $throughputMonitor.displayEnabled)
-                Picker("Rate unit", selection: $throughputMonitor.rateUnit) {
-                    ForEach(ThroughputRateUnit.allCases) { unit in
-                        Text(unit.label).tag(unit)
-                    }
-                }
-                Picker("Update interval", selection: $throughputMonitor.updateInterval) {
-                    ForEach(ThroughputUpdateInterval.allCases) { interval in
-                        Text(interval.label).tag(interval)
-                    }
-                }
-                Picker("Display mode", selection: $throughputMonitor.displayMode) {
-                    ForEach(ThroughputDisplayMode.allCases) { mode in
-                        Text(mode.label).tag(mode)
-                    }
-                }
-                Text("Measures byte-counter deltas across active non-loopback interfaces. Choose auto-scaling or a fixed KB/MB/GB/Kb/Mb/Gb display unit for the menu bar and popover.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            DataMilestoneSoundsSettingsView(manager: throughputMonitor.dataMilestoneSoundManager)
-
-            BlockListsSettingsView()
-
-            Section("Lookups") {
-                Picker("Default lookup provider", selection: $viewModel.settings.defaultLookupProviderID) {
-                    ForEach(LookupProvider.presets) { provider in
-                        Text("\(provider.name) - \(provider.category.rawValue)").tag(provider.id)
-                    }
-                }
-                Toggle("Do not show GeoIP/reputation lookup privacy warning again", isOn: $viewModel.settings.suppressLookupPrivacyWarning)
-                Toggle("Do not show traceroute warning again", isOn: $viewModel.settings.suppressTracerouteWarning)
-            }
-
-            Section("Nmap") {
-                TextField("Custom nmap path", text: $viewModel.settings.nmapPath)
-                    .font(.system(.body, design: .monospaced))
-                Text("Leave blank to auto-detect /opt/homebrew/bin/nmap, /usr/local/bin/nmap, or /usr/bin/nmap.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            IPSafetySettingsView()
-
-            IPThroughputSettingsView()
-
-            Section("Visual Appearance") {
-                Toggle("Enable gradient background", isOn: $enableGradientBackground)
-                Toggle("Enable glass panels", isOn: $enableGlassPanels)
-                Toggle("Enable row hover glow", isOn: $enableRowHoverGlow)
-                Toggle("Enable traffic sparklines", isOn: $enableTrafficSparklines)
-                Toggle("Compact mode", isOn: $compactMode)
-                Toggle("Reduce animations", isOn: $reduceAnimations)
-                Toggle("High contrast mode", isOn: $highContrastMode)
-                Text("These settings are visual only and do not change firewall, logging, menu bar, or Nmap behavior.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Button("Save Settings") {
-                viewModel.saveSettings()
-            }
+            .formStyle(.grouped)
+            .scrollDisabled(true)
+            .padding(18)
         }
-        .padding(18)
         .alert("Enable Protection at Boot?", isPresented: $viewModel.showStartupProtectionConfirmation) {
             Toggle("I understand this may affect network connectivity during startup.", isOn: $acknowledgedStartupRisk)
             Button("Cancel", role: .cancel) { acknowledgedStartupRisk = false }

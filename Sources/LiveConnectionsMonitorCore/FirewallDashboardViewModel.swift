@@ -44,6 +44,7 @@ public final class FirewallDashboardViewModel: ObservableObject {
     private let loginItemService = LoginItemService()
     private let startupProtectionService = StartupProtectionService()
     private let googleIPRangeService = GoogleIPRangeService()
+    private let reputationStore = ReputationBlockListStore.shared
 
     public init(database: FirewallDatabase, liveConnectionsViewModel: LiveConnectionsViewModel, firewallService: FirewallBlockService) {
         self.database = database
@@ -153,6 +154,16 @@ public final class FirewallDashboardViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    public func setReputationBlockingEnabled(_ enabled: Bool) {
+        settings.blockReputationMatchedConnections = enabled
+        saveSettings()
+    }
+
+    public func refreshRulePreview() {
+        rebuildPreview()
+        rebuildSnapshot()
     }
 
     public var googleRangeCount: Int {
@@ -500,7 +511,27 @@ public final class FirewallDashboardViewModel: ObservableObject {
             guard range.isEnabled, let country = enabledCountries[range.countryCode] else { return nil }
             return BlockRule(group: .importedBlocklists, value: range.cidr, direction: country.direction, source: .imported, note: "Geo block \(country.countryCode): \(country.notes)", isEnabled: true)
         }
-        return manual + imported + geo
+        return manual + imported + geo + reputationMatchedConnectionRules()
+    }
+
+    private func reputationMatchedConnectionRules() -> [BlockRule] {
+        guard settings.blockReputationMatchedConnections else { return [] }
+        let matched = liveConnectionsViewModel.connections.compactMap { connection -> BlockRule? in
+            guard let remoteIP = connection.remote?.address, !remoteIP.isEmpty else { return nil }
+            let matches = reputationStore.matches(for: connection)
+            guard !matches.isEmpty else { return nil }
+            let lists = Set(matches.map(\.listName)).sorted().joined(separator: ", ")
+            return BlockRule(
+                group: .importedBlocklists,
+                value: remoteIP,
+                direction: .both,
+                source: .imported,
+                note: "Matched enabled reputation block list: \(lists)",
+                isEnabled: true
+            )
+        }
+        var seen = Set<String>()
+        return matched.filter { seen.insert($0.value).inserted }
     }
 
     private func rebuildSnapshot() {

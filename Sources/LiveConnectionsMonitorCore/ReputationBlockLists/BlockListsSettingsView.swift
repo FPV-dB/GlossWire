@@ -8,9 +8,9 @@ public struct BlockListsSettingsView: View {
     public var body: some View {
         Section("Block Lists") {
             VStack(alignment: .leading, spacing: 8) {
-                Label("Reputation checking only", systemImage: "info.circle")
+                Label("Local reputation lists", systemImage: "info.circle")
                     .font(.headline)
-                Text("Enabled lists are used for local reputation matching and alerts. They do not automatically block traffic unless explicit blocking is enabled elsewhere.")
+                Text("Enabled lists are checked locally against live connection destinations. Blocking is only active when the Firewall setting to block matching live connections is enabled and the app-managed PF anchor is applied.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

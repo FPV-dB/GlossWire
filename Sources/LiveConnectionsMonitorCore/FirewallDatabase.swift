@@ -124,6 +124,7 @@ public final class FirewallDatabase: @unchecked Sendable {
                 case "startupRulesLoaded": settings.startupRulesLoaded = value == "1"
                 case "blockKnownGoogleConnections": settings.blockKnownGoogleConnections = value == "1"
                 case "googleRangesLastUpdatedAt": settings.googleRangesLastUpdatedAt = Double(value).map(Date.init(timeIntervalSince1970:))
+                case "blockReputationMatchedConnections": settings.blockReputationMatchedConnections = value == "1"
                 default: break
                 }
             }
@@ -152,7 +153,8 @@ public final class FirewallDatabase: @unchecked Sendable {
                 ("startupAnchorInstalled", settings.startupAnchorInstalled ? "1" : "0"),
                 ("startupRulesLoaded", settings.startupRulesLoaded ? "1" : "0"),
                 ("blockKnownGoogleConnections", settings.blockKnownGoogleConnections ? "1" : "0"),
-                ("googleRangesLastUpdatedAt", settings.googleRangesLastUpdatedAt.map { String($0.timeIntervalSince1970) } ?? "")
+                ("googleRangesLastUpdatedAt", settings.googleRangesLastUpdatedAt.map { String($0.timeIntervalSince1970) } ?? ""),
+                ("blockReputationMatchedConnections", settings.blockReputationMatchedConnections ? "1" : "0")
             ] {
                 try execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", [.text(key), .text(value)])
             }

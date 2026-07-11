@@ -44,9 +44,11 @@ public struct ReputationBadge: View {
 
 public struct ReputationMatchesView: View {
     let matches: [ReputationMatch]
+    let blockingEnabled: Bool
 
-    public init(matches: [ReputationMatch]) {
+    public init(matches: [ReputationMatch], blockingEnabled: Bool = false) {
         self.matches = matches
+        self.blockingEnabled = blockingEnabled
     }
 
     public var body: some View {
@@ -79,7 +81,7 @@ public struct ReputationMatchesView: View {
                     .padding(8)
                     .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
                 }
-                Text("Reputation matches are informational only. Review before blocking.")
+                Text(blockingEnabled ? "Blocking is enabled. Apply the app-managed PF anchor to enforce matching live connection IP blocks." : "Reputation matches are informational only. Review before blocking.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

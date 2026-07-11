@@ -170,6 +170,7 @@ public struct FirewallSettings: Hashable, Sendable {
     public var startupRulesLoaded = false
     public var blockKnownGoogleConnections = false
     public var googleRangesLastUpdatedAt: Date?
+    public var blockReputationMatchedConnections = false
 }
 
 public enum StartupProtectionMode: String, CaseIterable, Identifiable, Sendable {

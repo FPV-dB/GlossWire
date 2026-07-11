@@ -58,6 +58,14 @@ Blocklist imports support simple text, IP list, and CSV-style files. The importe
 
 Always review the generated summary before applying imported entries.
 
+### Reputation-Matched Live Connection Blocking
+
+Enabled blocklists are checked locally against observed live connection remote IPs. Matches are informational unless Settings > Firewall > Block live connections that match enabled Block Lists is enabled.
+
+When enabled, matching live connection remote IPs are added to the generated app-managed PF rule preview. They are not silently enforced. Review generated PF rules and apply the app-managed anchor before treating rules as active.
+
+![Reputation filter options and generated rule preview](screenshots/reputation-filter-options-redacted.png)
+
 ## Country Blocking
 
 Country blocking is opt-in. The app does not bundle proprietary GeoIP data. Users may import country range files they are licensed or permitted to use.
@@ -84,6 +92,7 @@ Settings include:
 - Data Milestone Sounds.
 - GeoIP and reputation lookup provider options.
 - Firewall and persistence options.
+- Optional blocking for live connections that match enabled local blocklists.
 
 Startup protection can affect connectivity. Read the confirmation text carefully before enabling strict modes.
 

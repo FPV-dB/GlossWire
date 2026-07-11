@@ -234,3 +234,20 @@ import Testing
 
     #expect(try database.settings().blockedServiceIDs == settings.blockedServiceIDs)
 }
+
+@Test func firewallSettingsPersistEmergencyBlockingPause() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathExtension("sqlite")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let database = try FirewallDatabase(url: url)
+    var settings = FirewallSettings()
+    settings.isBlockingPaused = true
+    settings.blockKnownTorRelays = true
+
+    try database.save(settings: settings)
+
+    let reloaded = try database.settings()
+    #expect(reloaded.isBlockingPaused)
+    #expect(reloaded.blockKnownTorRelays)
+}

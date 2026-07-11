@@ -39,6 +39,8 @@ public final class FirewallDashboardViewModel: ObservableObject {
     @Published public var showTorBlockingConfirmation = false
     @Published public var showTorDisableConfirmation = false
     @Published public var torBlockingProgress: String?
+    @Published public var showStopAllBlockingConfirmation = false
+    @Published public var isChangingEmergencyBlockingState = false
 
     public let liveConnectionsViewModel: LiveConnectionsViewModel
     private let database: FirewallDatabase
@@ -192,6 +194,55 @@ public final class FirewallDashboardViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    public func stopAllBlocking() async {
+        showStopAllBlockingConfirmation = false
+        isChangingEmergencyBlockingState = true
+        settings.isBlockingPaused = true
+        do {
+            try database.save(settings: settings)
+            rebuildPreview()
+            try await firewallService.apply(anchorText: rulePreview, settings: settings)
+            try await startupProtectionService.rollback()
+            settings.startupAnchorInstalled = false
+            settings.startupRulesLoaded = false
+            settings.lastStartupSynchronizationAt = Date()
+            try database.save(settings: settings)
+            try database.insertEvent(type: "Emergency blocking pause", message: "All GlossWire blocking stopped", detail: "App and startup anchors cleared; configuration preserved", succeeded: true)
+            reload()
+        } catch {
+            try? database.insertEvent(type: "Emergency blocking pause failed", message: "Could not clear every GlossWire anchor", detail: error.localizedDescription, succeeded: false)
+            errorMessage = "Emergency stop may be incomplete: \(error.localizedDescription)"
+            reload()
+        }
+        isChangingEmergencyBlockingState = false
+    }
+
+    public func resumeAllBlocking() async {
+        isChangingEmergencyBlockingState = true
+        settings.isBlockingPaused = false
+        do {
+            try database.save(settings: settings)
+            rebuildPreview()
+            try await firewallService.apply(anchorText: rulePreview, settings: settings)
+            if settings.startupMode != .monitorOnly {
+                try await startupProtectionService.install(mode: settings.startupMode, rulePreview: rulePreview, backup: settings.backupAnchorBeforeRewrite)
+                settings.startupAnchorInstalled = true
+                settings.startupRulesLoaded = true
+                settings.lastStartupSynchronizationAt = Date()
+                try database.save(settings: settings)
+            }
+            try database.insertEvent(type: "Emergency blocking resumed", message: "GlossWire blocking restored", detail: "Saved app and startup rules reapplied", succeeded: true)
+            reload()
+        } catch {
+            settings.isBlockingPaused = true
+            try? database.save(settings: settings)
+            try? database.insertEvent(type: "Emergency blocking resume failed", message: "Saved rules were not fully restored", detail: error.localizedDescription, succeeded: false)
+            errorMessage = "Blocking remains paused: \(error.localizedDescription)"
+            reload()
+        }
+        isChangingEmergencyBlockingState = false
     }
 
     public func refreshRulePreview() {

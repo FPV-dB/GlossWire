@@ -130,6 +130,7 @@ public final class FirewallDatabase: @unchecked Sendable {
                 case "torRangesLastUpdatedAt": settings.torRangesLastUpdatedAt = Double(value).map(Date.init(timeIntervalSince1970:))
                 case "blockReputationMatchedConnections": settings.blockReputationMatchedConnections = value == "1"
                 case "blockedServiceIDs": settings.blockedServiceIDs = Set(value.split(separator: ",").map(String.init))
+                case "isBlockingPaused": settings.isBlockingPaused = value == "1"
                 default: break
                 }
             }
@@ -164,7 +165,8 @@ public final class FirewallDatabase: @unchecked Sendable {
                 ("blockKnownTorRelays", settings.blockKnownTorRelays ? "1" : "0"),
                 ("torRangesLastUpdatedAt", settings.torRangesLastUpdatedAt.map { String($0.timeIntervalSince1970) } ?? ""),
                 ("blockReputationMatchedConnections", settings.blockReputationMatchedConnections ? "1" : "0"),
-                ("blockedServiceIDs", settings.blockedServiceIDs.sorted().joined(separator: ","))
+                ("blockedServiceIDs", settings.blockedServiceIDs.sorted().joined(separator: ",")),
+                ("isBlockingPaused", settings.isBlockingPaused ? "1" : "0")
             ] {
                 try execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", [.text(key), .text(value)])
             }

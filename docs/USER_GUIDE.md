@@ -61,6 +61,8 @@ Near the top of **Settings → Firewall**, **Block known public Tor relays and e
 
 The **Service Blocking** section provides independent switches for VNC/Screen Sharing, Apple Remote Desktop administration, Microsoft RDP, SSH/SFTP, Telnet, FTP, SMB, and Windows RPC/NetBIOS. Each switch blocks the service's conventional ports in both directions and updates the generated PF rules. Review and approve the PF apply prompt to activate the change. Custom-port and tunnelled traffic cannot be identified by these port rules.
 
+If GlossWire blocks something essential, select **Settings → Firewall → Stop All Blocking**. Confirm the warning and approve the macOS administrator prompt. GlossWire clears its app-managed and startup PF anchors but retains all saved rules and settings. The orange paused-state banner remains until **Resume Blocking** successfully reapplies them. Unrelated PF anchors are not changed.
+
 Blocklist imports support simple text, IP list, and CSV-style files. The importer:
 
 - Ignores blank lines.

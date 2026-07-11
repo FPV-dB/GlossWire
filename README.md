@@ -29,6 +29,7 @@ The app is intentionally conservative. It uses dedicated PF anchors, shows gener
 - A separately labelled, disabled-by-default Bitwire IT malicious outbound-destination feed.
 - Optional blocking of the Tor Project's currently known public relays and exits.
 - Independent Service Blocking toggles for conventional VNC/Screen Sharing, Apple Remote Desktop, RDP, SSH/SFTP, Telnet, FTP, SMB, and Windows RPC/NetBIOS ports.
+- Emergency **Stop All Blocking** and **Resume Blocking** controls that clear GlossWire-managed PF anchors without deleting saved rules or settings.
 - Optional blocking of live connections that match enabled local reputation blocklists.
 - Trusted allowlist entries that override generated block rules.
 - Searchable multi-country IPv4/IPv6 CIDR imports from IPdeny, plus manual country-list imports.
@@ -279,6 +280,10 @@ The **Block known public Tor relays and exits** toggle near the top of Firewall 
 Settings includes independent toggles for common remote-access and file-sharing services. GlossWire can block conventional VNC/Screen Sharing, Apple Remote Desktop administration, Microsoft RDP, SSH/SFTP, Telnet, FTP, SMB, and Windows RPC/NetBIOS ports in both directions. These rules appear in the generated PF preview and use the normal administrator-approved apply path.
 
 This is port-based protection. A service moved to a custom port or tunnelled through VPN, SSH, HTTPS, or another transport cannot be identified reliably by PF alone.
+
+## Emergency Blocking Pause
+
+If a rule blocks an essential service, use **Settings → Firewall → Stop All Blocking**. After administrator approval, GlossWire clears its active app and startup PF anchors while preserving configured rules, blocklists, service toggles, and startup mode. The paused state persists until **Resume Blocking** successfully restores the saved configuration. This control does not modify unrelated macOS or third-party PF anchors.
 
 ## Country Blocking
 

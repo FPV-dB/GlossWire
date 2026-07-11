@@ -106,6 +106,14 @@ public struct FirewallDashboardView: View {
         } message: {
             Text("The managed Tor relay blocklist will remain stored for audit history but will be disabled and removed from generated PF rules.")
         }
+        .alert("Stop All GlossWire Blocking?", isPresented: $viewModel.showStopAllBlockingConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Stop All Blocking", role: .destructive) {
+                Task { await viewModel.stopAllBlocking() }
+            }
+        } message: {
+            Text("This temporarily clears GlossWire's active app and startup PF anchors. Your configured rules, lists, toggles, and startup mode are preserved so they can be restored with Resume Blocking. macOS administrator approval is required.")
+        }
         .sheet(isPresented: $viewModel.showLookupPrivacyWarning) {
             VStack(alignment: .leading, spacing: 14) {
                 Label("Third-party lookup", systemImage: "globe")
@@ -1239,6 +1247,26 @@ public struct FirewallSettingsView: View {
                 }
 
                 Section("Firewall") {
+                    if viewModel.settings.isBlockingPaused {
+                        Label("All GlossWire blocking is temporarily stopped", systemImage: "exclamationmark.shield.fill")
+                            .foregroundStyle(.orange)
+                        Button("Resume Blocking") {
+                            Task { await viewModel.resumeAllBlocking() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(viewModel.isChangingEmergencyBlockingState)
+                    } else {
+                        Button("Stop All Blocking", role: .destructive) {
+                            viewModel.showStopAllBlockingConfirmation = true
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
+                        .disabled(viewModel.isChangingEmergencyBlockingState)
+                    }
+                    Text("Emergency control: clears only GlossWire-managed PF anchors and preserves every saved rule and setting for later restoration.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Divider()
                     Toggle("Block known public Tor relays and exits", isOn: Binding(
                         get: { viewModel.settings.blockKnownTorRelays },
                         set: { viewModel.requestTorBlocking($0) }

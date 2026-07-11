@@ -176,6 +176,7 @@ public struct FirewallSettings: Hashable, Sendable {
     public var torRangesLastUpdatedAt: Date?
     public var blockReputationMatchedConnections = false
     public var blockedServiceIDs: Set<String> = []
+    public var isBlockingPaused = false
 }
 
 public enum NetworkServiceBlockPreset: String, CaseIterable, Identifiable, Sendable {

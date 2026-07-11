@@ -4,6 +4,14 @@ public struct FirewallRuleGenerator: Sendable {
     public init() {}
 
     public func rules(for blockRules: [BlockRule], allowlist: [AllowlistEntry], settings: FirewallSettings) -> String {
+        if settings.isBlockingPaused {
+            return """
+            # Managed by GlossWire.
+            # EMERGENCY PAUSE: all GlossWire blocking is temporarily disabled.
+            # Saved rules and settings have not been deleted.
+
+            """
+        }
         let allowed = Set(allowlist.filter(\.isEnabled).map { $0.value.trimmingCharacters(in: .whitespacesAndNewlines) })
         var lines = [
             "# Managed by GlossWire.",

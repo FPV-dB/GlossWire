@@ -59,6 +59,17 @@ func capturedGoogleResolutionIsBlocked(hostname: String, address: String, expect
     #expect(serviceRule.lowerBound < allowRule.lowerBound)
 }
 
+@Test func emergencyPauseGeneratesAnEmptyGlossWireAnchorWithoutDeletingSettings() {
+    var settings = FirewallSettings()
+    settings.isBlockingPaused = true
+    settings.blockedServiceIDs = [NetworkServiceBlockPreset.vnc.id]
+    let rules = FirewallRuleGenerator().rules(for: googleRules, allowlist: [], settings: settings)
+
+    #expect(rules.contains("EMERGENCY PAUSE"))
+    #expect(!rules.contains("block drop"))
+    #expect(settings.blockedServiceIDs.contains(NetworkServiceBlockPreset.vnc.id))
+}
+
 @Test func evaluatorLogsFailedAndSuccessfulRuleReasons() {
     let result = FirewallRuleEvaluator().evaluate(address: "142.250.124.119", blockRules: googleRules, allowlist: [])
     #expect(result.evaluations[0].matched == false)

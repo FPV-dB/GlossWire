@@ -5,6 +5,9 @@ import SwiftUI
 public struct ConnectionTimelineView: View {
     @ObservedObject private var viewModel: ApplicationNetworkViewModel
     @State private var displayMode = TimelineDisplayMode.records
+    @StateObject private var bookmarkStore = TimelineBookmarkStore()
+    @State private var comparisonDayA = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+    @State private var comparisonDayB = Date()
 
     public init(viewModel: ApplicationNetworkViewModel) {
         self.viewModel = viewModel
@@ -31,6 +34,7 @@ public struct ConnectionTimelineView: View {
                     case .relationships: relationshipView
                     case .changes: whatChangedView
                     case .topology: topologyView
+                    case .compare: comparisonView
                     }
                 }
                 footer
@@ -127,6 +131,14 @@ public struct ConnectionTimelineView: View {
                     Button("Record Session") { viewModel.startSessionRecording() }
                 }
                 Button("Export Session") { exportSession() }.disabled(viewModel.recordedSession.isEmpty)
+                Divider().frame(height: 22)
+                Button { bookmarkStore.add(at: viewModel.timelineReplayDate ?? Date()) } label: { Label("Bookmark", systemImage: "bookmark") }
+                Menu("Bookmarks") {
+                    if bookmarkStore.bookmarks.isEmpty { Text("No bookmarks") }
+                    ForEach(bookmarkStore.bookmarks) { bookmark in
+                        Button { viewModel.timelineReplayDate = bookmark.timestamp } label: { Text("\(bookmark.title) — \(bookmark.timestamp.formatted(date: .abbreviated, time: .shortened))") }
+                    }
+                }
             }
         }
     }
@@ -329,6 +341,26 @@ public struct ConnectionTimelineView: View {
         }
     }
 
+    private var comparisonView: some View {
+        let calendar = Calendar.current
+        let aStart = calendar.startOfDay(for: comparisonDayA), bStart = calendar.startOfDay(for: comparisonDayB)
+        let aEnd = calendar.date(byAdding: .day, value: 1, to: aStart)!.addingTimeInterval(-0.001)
+        let bEnd = calendar.date(byAdding: .day, value: 1, to: bStart)!.addingTimeInterval(-0.001)
+        let result = NetworkInvestigationAnalyzer().compare(records: viewModel.timelineHistory, first: aStart...aEnd, second: bStart...bEnd)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack { DatePicker("First day", selection: $comparisonDayA, displayedComponents: .date); DatePicker("Second day", selection: $comparisonDayB, displayedComponents: .date); Spacer() }
+                Text("Compare Two Days").font(.title3.weight(.semibold))
+                HStack { GlassMetricCard("First observations", value: result.firstObservations.formatted(), systemImage: "1.circle", accent: .secondary); GlassMetricCard("Second observations", value: result.secondObservations.formatted(), systemImage: "2.circle", accent: .cyan); GlassMetricCard("Change", value: result.observationChangePercent.map { "\($0 >= 0 ? "+" : "")\($0)%" } ?? "No baseline", systemImage: "arrow.left.arrow.right", accent: .orange) }
+                changeGroup("New processes", values: result.newProcesses.map { PrivacyRedactor.process($0, enabled: viewModel.privacyModeEnabled) }, icon: "plus.app")
+                changeGroup("New destinations", values: result.newDestinations.map { PrivacyRedactor.address($0, enabled: viewModel.privacyModeEnabled) }, icon: "plus.circle")
+                changeGroup("New countries", values: result.newCountries, icon: "globe")
+                changeGroup("New ports", values: result.newPorts, icon: "number.circle")
+                Text("Comparison uses only records currently retained and loaded by the selected Timeline window.").font(.caption).foregroundStyle(.secondary)
+            }.padding(12)
+        }
+    }
+
     private func topologyIcon(_ node: ObservedTopologyNode) -> String {
         let text = (node.name + node.services.joined()).lowercased()
         if text.contains("nas") || text.contains("file server") { return "externaldrive.connected.to.line.below" }
@@ -351,7 +383,7 @@ public struct ConnectionTimelineView: View {
     }
 }
 
-private enum TimelineDisplayMode: String, CaseIterable, Identifiable { case records = "Records", heatmap = "Heatmap", countries = "Countries", lifetimes = "Lifetimes", relationships = "Relationships", changes = "What Changed?", topology = "Topology"; var id: String { rawValue } }
+private enum TimelineDisplayMode: String, CaseIterable, Identifiable { case records = "Records", heatmap = "Heatmap", countries = "Countries", lifetimes = "Lifetimes", relationships = "Relationships", changes = "What Changed?", topology = "Topology", compare = "Compare"; var id: String { rawValue } }
 private struct HeatmapCell: Identifiable { let app: String; let records: [AppConnectionRecord]; var id: String { app }; var totalBytes: UInt64 { records.compactMap(\.bytesSent).reduce(0, +) + records.compactMap(\.bytesReceived).reduce(0, +) }; var weight: UInt64 { totalBytes > 0 ? totalBytes : UInt64(records.count) }; var color: Color { let up = records.compactMap(\.bytesSent).reduce(0, +); let down = records.compactMap(\.bytesReceived).reduce(0, +); return totalBytes == 0 ? .blue : up > down ? .orange : .cyan } }
 private struct CountryRow: Identifiable { let country: String; let count: Int; var id: String { country } }
 private enum LifetimeBucket: String, CaseIterable { case milliseconds = "<1s", seconds = "1–59s", minutes = "1–59m", hours = "1–23h", days = "1d+"; func contains(_ value: TimeInterval) -> Bool { switch self { case .milliseconds: value < 1; case .seconds: value >= 1 && value < 60; case .minutes: value >= 60 && value < 3600; case .hours: value >= 3600 && value < 86400; case .days: value >= 86400 } } }

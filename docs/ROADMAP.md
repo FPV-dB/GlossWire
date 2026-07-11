@@ -15,6 +15,7 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - Timeline Privacy Mode masking.
 - Network Intelligence dashboard with local Journal, application Passports, Network Memory, port analytics, domain-family grouping, and an activity calendar.
 - Evidence-based periodic endpoint and IPv6 signals, with honest capability gates for provider-dependent detectors.
+- Persistent Timeline bookmarks and two-day retained-metadata comparisons.
 - Throughput graphs and per-IP throughput history.
 - DNSBL, ASN, RDAP, reverse DNS, Tor checks, and 0–100 IP safety scoring.
 - Explicit local/private selected-target Nmap scans with history, comparison, favourites, and export.

@@ -19,6 +19,13 @@ public struct ObservedTopologyNode: Identifiable, Sendable, Hashable {
     public let observationCount: Int
 }
 
+public struct NetworkPeriodComparison: Sendable, Hashable {
+    public let first: ClosedRange<Date>; public let second: ClosedRange<Date>
+    public let firstObservations: Int; public let secondObservations: Int
+    public let newProcesses: [String]; public let newDestinations: [String]; public let newCountries: [String]; public let newPorts: [String]
+    public var observationChangePercent: Int? { firstObservations == 0 ? nil : Int((Double(secondObservations) / Double(firstObservations) - 1) * 100) }
+}
+
 public struct NetworkInvestigationAnalyzer: Sendable {
     public init() {}
 
@@ -56,6 +63,16 @@ public struct NetworkInvestigationAnalyzer: Sendable {
             let name = last.remoteHostname.flatMap { $0.isEmpty ? nil : $0 } ?? Self.deviceHint(services: services)
             return ObservedTopologyNode(id: address, address: address, name: name, services: services, lastSeen: last.timestamp, observationCount: records.count)
         }.sorted { $0.lastSeen > $1.lastSeen }
+    }
+
+    public func compare(records: [AppConnectionRecord], first: ClosedRange<Date>, second: ClosedRange<Date>) -> NetworkPeriodComparison {
+        let a = records.filter { first.contains($0.timestamp) }; let b = records.filter { second.contains($0.timestamp) }
+        func added(_ left: [String], _ right: [String]) -> [String] { Array(Set(right).subtracting(Set(left))).sorted() }
+        return NetworkPeriodComparison(first: first, second: second, firstObservations: a.count, secondObservations: b.count,
+            newProcesses: added(a.map(\.appBundleIdentifier), b.map(\.appBundleIdentifier)),
+            newDestinations: added(a.compactMap(\.remoteAddress), b.compactMap(\.remoteAddress)),
+            newCountries: added(a.compactMap(\.countryCode), b.compactMap(\.countryCode)),
+            newPorts: added(a.compactMap(\.remotePort), b.compactMap(\.remotePort)))
     }
 
     private static func isPrivate(_ address: String) -> Bool {

@@ -6,6 +6,20 @@ private func investigationRecord(_ id: String, time: TimeInterval, app: String, 
     AppConnectionRecord(id: id, timestamp: Date(timeIntervalSince1970: time), appBundleIdentifier: app, pid: 1, direction: .outbound, protocolKind: .tcp, localAddress: "192.168.1.2", localPort: "50000", remoteAddress: remote, remotePort: port, remoteHostname: nil, countryCode: nil, state: "ESTABLISHED", bytesSent: nil, bytesReceived: nil, duration: 2, ruleAction: .observed)
 }
 
+@Test func compareTwoPeriodsReportsOnlySecondPeriodAdditions() {
+    let day = Date(timeIntervalSince1970: 1_700_000_000)
+    func record(_ id: String, _ offset: TimeInterval, _ app: String, _ address: String, _ port: String, _ country: String) -> AppConnectionRecord {
+        AppConnectionRecord(id: id, timestamp: day.addingTimeInterval(offset), appBundleIdentifier: app, pid: 1, direction: .outbound,
+                            protocolKind: .tcp, localAddress: "127.0.0.1", localPort: "1", remoteAddress: address, remotePort: port,
+                            remoteHostname: nil, countryCode: country, state: "ESTABLISHED", bytesSent: nil, bytesReceived: nil, duration: 0, ruleAction: .observed)
+    }
+    let result = NetworkInvestigationAnalyzer().compare(records: [record("a", 10, "Safari", "1.1.1.1", "443", "AU"), record("b", 110, "Mail", "8.8.8.8", "993", "US")], first: day...day.addingTimeInterval(99), second: day.addingTimeInterval(100)...day.addingTimeInterval(200))
+    #expect(result.newProcesses == ["Mail"])
+    #expect(result.newDestinations == ["8.8.8.8"])
+    #expect(result.newPorts == ["993"])
+    #expect(result.newCountries == ["US"])
+}
+
 @Test func whatChangedComparesAdjacentWindows() {
     let records = [
         investigationRecord("old", time: 1_000, app: "Steam", remote: "198.51.100.1", port: "443"),

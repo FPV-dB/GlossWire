@@ -59,9 +59,12 @@ The Timeline view selector provides:
 - **Lifetimes:** histogram buckets from sub-second through multi-day connections.
 - **Relationships:** process-to-service grouping based on known ports, with destination counts.
 - **What Changed?:** compares the current hour with the previous hour for new processes, destinations, ports, disappeared processes, and observation-volume changes.
+- **Compare:** selects two calendar days and reports new processes, destinations, countries, ports, and the change in retained observations.
 - **Topology:** shows only private LAN devices already present in retained connection observations, with inferred service/device labels. It never initiates a discovery scan.
 
 Enable **Privacy Mode** before presenting or capturing the Timeline. It masks process identifiers, public addresses, hostnames, and paths in supported views without changing stored records.
+
+Use **Bookmark** in the Flight Recorder bar to persist the current replay position. The Bookmarks menu jumps back to saved investigation moments. Comparisons and bookmarks reference retained endpoint history; reducing retention can make an older bookmark fall outside the available record range.
 
 ## Network Intelligence
 

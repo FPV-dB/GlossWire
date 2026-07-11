@@ -6,7 +6,7 @@ public struct FirewallRuleGenerator: Sendable {
     public func rules(for blockRules: [BlockRule], allowlist: [AllowlistEntry], settings: FirewallSettings) -> String {
         let allowed = Set(allowlist.filter(\.isEnabled).map { $0.value.trimmingCharacters(in: .whitespacesAndNewlines) })
         var lines = [
-            "# Managed by Firewall Dashboard.",
+            "# Managed by GlossWire.",
             "# Dedicated PF anchor: \(settings.anchorName)",
             "# Do not place unrelated rules in this file.",
             ""

@@ -33,6 +33,12 @@ public final class FirewallDashboardViewModel: ObservableObject {
     @Published public var showGoogleBlockingConfirmation = false
     @Published public var showGoogleDisableConfirmation = false
     @Published public var googleBlockingProgress: String?
+    @Published public var showMicrosoftBlockingConfirmation = false
+    @Published public var showMicrosoftDisableConfirmation = false
+    @Published public var microsoftBlockingProgress: String?
+    @Published public var showTorBlockingConfirmation = false
+    @Published public var showTorDisableConfirmation = false
+    @Published public var torBlockingProgress: String?
 
     public let liveConnectionsViewModel: LiveConnectionsViewModel
     private let database: FirewallDatabase
@@ -44,6 +50,8 @@ public final class FirewallDashboardViewModel: ObservableObject {
     private let loginItemService = LoginItemService()
     private let startupProtectionService = StartupProtectionService()
     private let googleIPRangeService = GoogleIPRangeService()
+    private let microsoftIPRangeService = MicrosoftIPRangeService()
+    private let torRelayRangeService = TorRelayRangeService()
     private let reputationStore = ReputationBlockListStore.shared
     private var didSynchronizeStrictStartupLockAfterLaunch = false
 
@@ -175,6 +183,64 @@ public final class FirewallDashboardViewModel: ObservableObject {
         return blocklist.entryCount
     }
 
+    public var microsoftRangeCount: Int {
+        guard let blocklist = blocklists.first(where: { $0.name == MicrosoftIPRangeService.managedBlocklistName }) else { return 0 }
+        return blocklist.entryCount
+    }
+
+    public var torRelayRangeCount: Int {
+        blocklists.first(where: { $0.name == TorRelayRangeService.managedBlocklistName })?.entryCount ?? 0
+    }
+
+    public func requestTorBlocking(_ enabled: Bool) {
+        if enabled { showTorBlockingConfirmation = true } else { showTorDisableConfirmation = true }
+    }
+
+    public func enableTorBlocking() async {
+        showTorBlockingConfirmation = false
+        torBlockingProgress = "Downloading the Tor Project's current public relay catalogue..."
+        do {
+            let result = try await torRelayRangeService.fetchRunningRelayRanges()
+            try database.replaceManagedBlocklist(
+                name: TorRelayRangeService.managedBlocklistName,
+                sourceFilename: "Tor Project Onionoo summary",
+                notes: "Known running public Tor relay addresses. Bridges and other proxies may bypass this list.",
+                entries: result.ranges,
+                enabled: true
+            )
+            settings.blockKnownTorRelays = true
+            settings.torRangesLastUpdatedAt = result.publishedAt ?? result.fetchedAt
+            try database.save(settings: settings)
+            try database.insertEvent(type: "Tor blocking enabled", message: "Known public Tor relays", detail: "\(result.ranges.count) relay addresses prepared", succeeded: true)
+            torBlockingProgress = nil
+            reload()
+            await applyRulesIfAllowed()
+        } catch {
+            torBlockingProgress = nil
+            try? database.insertEvent(type: "Tor range refresh failed", message: "Known public Tor relays", detail: error.localizedDescription, succeeded: false)
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    public func refreshTorRanges() async {
+        guard settings.blockKnownTorRelays else { return }
+        await enableTorBlocking()
+    }
+
+    public func disableTorBlocking() async {
+        showTorDisableConfirmation = false
+        do {
+            try database.setManagedBlocklistEnabled(name: TorRelayRangeService.managedBlocklistName, enabled: false)
+            settings.blockKnownTorRelays = false
+            try database.save(settings: settings)
+            try database.insertEvent(type: "Tor blocking disabled", message: "Known public Tor relays", detail: "Managed ranges removed from generated rules", succeeded: true)
+            reload()
+            await applyRulesIfAllowed()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     public func requestGoogleBlocking(_ enabled: Bool) {
         if enabled {
             showGoogleBlockingConfirmation = true
@@ -228,6 +294,59 @@ public final class FirewallDashboardViewModel: ObservableObject {
         }
     }
 
+    public func requestMicrosoftBlocking(_ enabled: Bool) {
+        if enabled {
+            showMicrosoftBlockingConfirmation = true
+        } else {
+            showMicrosoftDisableConfirmation = true
+        }
+    }
+
+    public func enableMicrosoftBlocking() async {
+        showMicrosoftBlockingConfirmation = false
+        microsoftBlockingProgress = "Downloading Microsoft's public Azure service tag ranges..."
+        do {
+            let result = try await microsoftIPRangeService.fetchAllKnownRanges()
+            try database.replaceManagedBlocklist(
+                name: MicrosoftIPRangeService.managedBlocklistName,
+                sourceFilename: "ServiceTags_Public.json",
+                notes: "Microsoft public Azure service tag ranges. Broad blocking preset.",
+                entries: result.ranges,
+                enabled: true
+            )
+            settings.blockKnownMicrosoftConnections = true
+            settings.microsoftRangesLastUpdatedAt = result.fetchedAt
+            try database.save(settings: settings)
+            try database.insertEvent(type: "Microsoft blocking enabled", message: "Known Microsoft ranges", detail: "\(result.ranges.count) ranges prepared", succeeded: true)
+            microsoftBlockingProgress = nil
+            reload()
+            await applyRulesIfAllowed()
+        } catch {
+            microsoftBlockingProgress = nil
+            try? database.insertEvent(type: "Microsoft range refresh failed", message: "Known Microsoft ranges", detail: error.localizedDescription, succeeded: false)
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    public func refreshMicrosoftRanges() async {
+        guard settings.blockKnownMicrosoftConnections else { return }
+        await enableMicrosoftBlocking()
+    }
+
+    public func disableMicrosoftBlocking() async {
+        showMicrosoftDisableConfirmation = false
+        do {
+            try database.setManagedBlocklistEnabled(name: MicrosoftIPRangeService.managedBlocklistName, enabled: false)
+            settings.blockKnownMicrosoftConnections = false
+            try database.save(settings: settings)
+            try database.insertEvent(type: "Microsoft blocking disabled", message: "Known Microsoft ranges", detail: "Managed ranges removed from generated rules", succeeded: true)
+            reload()
+            await applyRulesIfAllowed()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     public func setLaunchAtLogin(_ enabled: Bool) {
         do {
             try loginItemService.setEnabled(enabled)
@@ -242,6 +361,21 @@ public final class FirewallDashboardViewModel: ObservableObject {
             settings.launchAtLogin = false
             errorMessage = error.localizedDescription
             loginItemStatus = loginItemService.status()
+        }
+    }
+
+    public func setStartupMode(_ mode: StartupProtectionMode) {
+        guard settings.startupMode != mode else { return }
+        settings.startupMode = mode
+        settings.startupAcknowledged = false
+        settings.startupAnchorInstalled = false
+        settings.startupRulesLoaded = false
+        settings.lastStartupSynchronizationAt = nil
+        do {
+            try database.save(settings: settings)
+            Task { await refreshStartupStatus() }
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 
@@ -267,6 +401,27 @@ public final class FirewallDashboardViewModel: ObservableObject {
 
     public func refreshStartupStatus() async {
         startupStatus = await startupProtectionService.status(settings: settings)
+        rebuildSnapshot()
+    }
+
+    public func checkPFStatusWithAdministratorPrivileges() async {
+        do {
+            startupStatus.pfEnabled = try await startupProtectionService.privilegedPFStatus()
+            rebuildSnapshot()
+        } catch {
+            errorMessage = "Unable to check PF status: \(error.localizedDescription)"
+        }
+    }
+
+    public func enablePF() async {
+        do {
+            startupStatus.pfEnabled = try await startupProtectionService.enablePF()
+            try database.insertEvent(type: "PF enabled", message: "Enabled from GlossWire", detail: "Administrator-approved pfctl -e", succeeded: true)
+            rebuildSnapshot()
+        } catch {
+            try? database.insertEvent(type: "PF enable failed", message: "Could not enable PF", detail: error.localizedDescription, succeeded: false)
+            errorMessage = "Unable to enable PF: \(error.localizedDescription)"
+        }
     }
 
     public func installStartupProtection() async {
@@ -460,6 +615,46 @@ public final class FirewallDashboardViewModel: ObservableObject {
         }
     }
 
+    public func importIPDenyCountries(_ countries: [CountryCatalogEntry], includeIPv4: Bool, includeIPv6: Bool) {
+        guard !countries.isEmpty, includeIPv4 || includeIPv6 else { return }
+        let versions: [IPVersion] = [includeIPv4 ? .ipv4 : nil, includeIPv6 ? .ipv6 : nil].compactMap { $0 }
+        countryImportProgress = "Preparing \(countries.count) countr\(countries.count == 1 ? "y" : "ies")..."
+        Task {
+            var warnings: [String] = []
+            var failures: [String] = []
+            let source = IPDenyCountrySource()
+            let importer = GeoBlockImportService()
+            let total = countries.count * versions.count
+            var completed = 0
+            for country in countries {
+                for version in versions {
+                    countryImportProgress = "Downloading \(country.name) \(version.rawValue) (\(completed + 1) of \(total))..."
+                    do {
+                        let text = try await source.download(countryCode: country.code, version: version)
+                        let result = try await importer.importText(
+                            text,
+                            countryCode: country.code,
+                            countryName: country.name,
+                            sourceName: "IPdeny \(version.rawValue) aggregated",
+                            notes: "Country allocation ranges imported from IPdeny",
+                            database: database
+                        )
+                        warnings.append(contentsOf: result.warnings)
+                    } catch {
+                        failures.append("\(country.name) \(version.rawValue): \(error.localizedDescription)")
+                    }
+                    completed += 1
+                }
+            }
+            countryImportProgress = nil
+            importWarnings = Array(Set(warnings)).sorted()
+            if !failures.isEmpty {
+                errorMessage = "Some country lists could not be imported: \(failures.prefix(3).joined(separator: "; "))"
+            }
+            reload()
+        }
+    }
+
     public func setGeoCountryEnabled(code: String, enabled: Bool) {
         do {
             try database.setGeoCountryEnabled(code: code, enabled: enabled)
@@ -571,7 +766,7 @@ public final class FirewallDashboardViewModel: ObservableObject {
             blocksInLastHour: events.filter { $0.date >= hourAgo && $0.eventType.localizedCaseInsensitiveContains("block") }.count,
             topRemoteIPs: remoteCounts.sorted { $0.value > $1.value }.prefix(5).map { ($0.key, $0.value) },
             topProcesses: processCounts.sorted { $0.value > $1.value }.prefix(5).map { ($0.key, $0.value) },
-            pfStatus: "unknown",
+            pfStatus: startupStatus.pfEnabled,
             lastRuleReload: events.first { $0.eventType == "PF reload succeeded" }?.date
         )
     }

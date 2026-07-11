@@ -1,12 +1,12 @@
-# Connection Manager
+# GlossWire
 
-Connection Manager is a native macOS SwiftUI firewall dashboard and live network connection monitor.
+GlossWire is a native macOS SwiftUI firewall dashboard and live network connection monitor.
 
 It is built for defensive visibility: seeing which processes are talking to the network, reviewing traffic rates, managing app-owned PF firewall rules, importing blocklists, and keeping a clear audit trail of changes.
 
 The app is intentionally conservative. It uses dedicated PF anchors, shows generated rules before applying them, requires administrator approval for firewall writes, and avoids packet capture, credential capture, traffic interception, or stealth behavior.
 
-![Connection Manager defensive dashboard](docs/screenshots/defensive-dashboard-redacted.png)
+![GlossWire defensive dashboard](docs/screenshots/defensive-dashboard-redacted.png)
 
 ## Documentation
 
@@ -19,26 +19,32 @@ The app is intentionally conservative. It uses dedicated PF anchors, shows gener
 
 - Live TCP and UDP connection monitoring.
 - Menu bar download/upload throughput display.
+- Optional draggable glass throughput bar for the desktop and every Space.
 - Stable fixed-width menu bar speed formatting.
 - Auto-scaling or fixed rate units: B/s, KB/s, MB/s, GB/s, b/s, Kb/s, Mb/s, and Gb/s.
 - Process-aware application network activity view.
 - Manual IP and CIDR blocking.
 - Imported blocklists with validation and duplicate handling.
+- Separately labelled, disabled-by-default FireHOL catalogue subscriptions.
+- A separately labelled, disabled-by-default Bitwire IT malicious outbound-destination feed.
+- Optional blocking of the Tor Project's currently known public relays and exits.
 - Optional blocking of live connections that match enabled local reputation blocklists.
 - Trusted allowlist entries that override generated block rules.
-- Opt-in country/CIDR blocking from user-supplied data.
+- Searchable multi-country IPv4/IPv6 CIDR imports from IPdeny, plus manual country-list imports.
 - Opt-in known Google and Google Cloud IP range blocking from Google's published feeds.
 - PF rule preview before applying.
 - Event logging and SQLite persistence.
 - Launch-at-login support.
 - Optional startup protection modes.
+- Optional adjustable texture overlays: grain, dots, weave, grid, and circuit traces.
 - Explicit IP reputation and GeoIP lookup links.
 - Optional ping and traceroute tools for selected public remote IPs.
+- Selected-IP Nmap quick, service/version and OS scans with workbench history and export.
 - Data Milestone Sounds for download, upload, or combined traffic thresholds.
 
 ## Screens
 
-The main window is called **Firewall Dashboard** and includes:
+The main window is called **GlossWire** and includes:
 
 - Dashboard
 - Live Connections
@@ -50,11 +56,11 @@ The main window is called **Firewall Dashboard** and includes:
 - Logs
 - Settings
 
-Closing the window hides it instead of quitting. The app remains available from the menu bar.
+Closing the window hides it instead of quitting. The app remains available from the menu bar. Login-item launches also keep the main window hidden until **Show Connections** is selected from the menu bar; launching the app manually opens the window normally.
 
 ## Menu Bar Throughput
 
-Connection Manager can show live download and upload speed directly in the macOS menu bar.
+GlossWire can show live download and upload speed directly in the macOS menu bar.
 
 Settings include:
 
@@ -76,7 +82,13 @@ Rate units can be auto-scaling or fixed:
 
 The menu bar display uses fixed-width numeric formatting so the menu bar does not shift every time the speed changes.
 
-![Menu bar network throughput popover](docs/screenshots/menu-bar-throughput-popover.png)
+Example high-throughput display (`86.0 MB/s`):
+
+![Menu bar network throughput popover showing 86 MB/s](docs/screenshots/menu-bar-throughput-popover-high-speed.png)
+
+### Desktop Throughput Bar
+
+Settings > Desktop Throughput Bar can show a compact translucent overlay with the real current download and upload rates and a 60-second activity graph. Its opacity is adjustable from 25% to 100%. The bar stays above other windows, follows you across Spaces, remembers where you drag it, and can be hidden from its hover close button or the Settings toggle. It is disabled by default.
 
 ## Data Milestone Sounds
 
@@ -112,7 +124,7 @@ Custom audio files can use common macOS-supported audio formats such as MP3, WAV
 
 ## Firewall Model
 
-Connection Manager uses macOS PF through app-managed anchors.
+GlossWire uses macOS PF through app-managed anchors.
 
 The primary app anchor is:
 
@@ -139,15 +151,17 @@ The app does not redirect traffic to localhost, does not flush the global PF rul
 
 Settings include a Startup section with:
 
-- Start Connection Manager at startup.
+- Start GlossWire at startup.
 - Startup Mode.
 - PF startup status.
 - Last startup timestamp.
 - Last synchronization timestamp.
 
-Start at startup uses Apple's modern login item APIs through `SMAppService`. Depending on local macOS policy, the user may still need to approve Connection Manager in System Settings > Login Items.
+Start at startup uses Apple's modern login item APIs through `SMAppService`. Depending on local macOS policy, the user may still need to approve GlossWire in System Settings > Login Items.
 
-When startup launch is enabled and no startup protection mode is already selected, Connection Manager selects **Strict Startup Lock** and asks for administrator approval to install the startup PF anchor. The on-disk startup anchor blocks all non-loopback traffic by default so network traffic cannot pass before Connection Manager starts. After the app is running, it synchronizes the live PF startup anchor with the normal generated app rules while keeping the strict on-disk startup anchor ready for the next boot.
+When macOS identifies the launch as a login-item launch, GlossWire starts its monitoring and menu bar item without presenting the main window. Use **Show Connections** in the menu bar popover to reveal it. This does not affect normal manual launches.
+
+When startup launch is enabled and no startup protection mode is already selected, GlossWire selects **Strict Startup Lock** and asks for administrator approval to install the startup PF anchor. The on-disk startup anchor blocks all non-loopback traffic by default so network traffic cannot pass before GlossWire starts. After the app is running, it synchronizes the live PF startup anchor with the normal generated app rules while keeping the strict on-disk startup anchor ready for the next boot.
 
 Startup protection is separate from launch at login. It uses dedicated PF anchors:
 
@@ -161,13 +175,13 @@ Startup modes:
 
 - **Monitor Only**: no startup PF rules.
 - **Protection at Boot**: keeps app-managed rules active and synchronizes after launch.
-- **Strict Startup Lock**: advanced mode that blocks all non-loopback traffic until Connection Manager starts and synchronizes PF.
+- **Strict Startup Lock**: advanced mode that blocks all non-loopback traffic until GlossWire starts and synchronizes PF.
 
 Strict Startup Lock requires an additional confirmation. It can affect network connectivity if misconfigured.
 
 Recovery options:
 
-- Reopen Connection Manager and use **Rollback Startup Protection** in Settings.
+- Reopen GlossWire and use **Rollback Startup Protection** in Settings.
 - Or remove `/etc/pf.anchors/com.connectionmanager.startup` with administrator privileges and reload the anchor.
 
 ## Live Connection Monitoring
@@ -239,7 +253,7 @@ This option is deliberately gated:
 
 ## Known Google Range Blocking
 
-Connection Manager includes an opt-in preset to block all IP/CIDR ranges published in Google's official `goog.json` and `cloud.json` feeds.
+GlossWire includes an opt-in preset to block all IP/CIDR ranges published in Google's official `goog.json` and `cloud.json` feeds.
 
 This is broad IP-range blocking. It may disrupt:
 
@@ -254,6 +268,10 @@ This is broad IP-range blocking. It may disrupt:
 - Customer services hosted on Google Cloud.
 
 The app stores the downloaded ranges in a managed blocklist, shows them in the normal PF rule preview, and applies them only through the normal administrator-confirmation flow. The preset can be disabled without deleting audit history.
+
+## Known Tor Relay Blocking
+
+The **Block known public Tor relays and exits** toggle near the top of Firewall settings downloads the Tor Project Onionoo catalogue and maintains a separately labelled managed blocklist. Enabling or disabling it uses the normal PF preview and administrator-confirmation path. This can disrupt Tor and `.onion` access, but it cannot guarantee a complete Tor block because unpublished bridges and other proxies may bypass IP-based filtering.
 
 ## Country Blocking
 
@@ -335,7 +353,7 @@ Throughput and Data Milestone Sound settings are stored in `UserDefaults`.
 
 ## Safety Limits
 
-Connection Manager validates addresses before import or blocking.
+GlossWire validates addresses before import or blocking.
 
 The app refuses dangerous or non-routable special addresses such as:
 
@@ -371,7 +389,7 @@ A production privileged helper could replace this later, but the privileged boun
 
 ## What This App Does Not Do
 
-Connection Manager does not implement:
+GlossWire does not implement:
 
 - Packet capture.
 - Man-in-the-middle interception.
@@ -415,7 +433,7 @@ Build a signed local `.app` bundle:
 The app bundle is written to:
 
 ```text
-build/Live Connections Monitor.app
+build/GlossWire.app
 ```
 
 ## Install Locally
@@ -423,8 +441,8 @@ build/Live Connections Monitor.app
 After building:
 
 ```sh
-cp -R "build/Live Connections Monitor.app" /Applications/
-open "/Applications/Live Connections Monitor.app"
+cp -R "build/GlossWire.app" /Applications/
+open "/Applications/GlossWire.app"
 ```
 
 If an older copy is running, quit it before replacing the app bundle.
@@ -457,7 +475,7 @@ Current test coverage includes:
 
 ## Privacy
 
-Connection Manager is local-first.
+GlossWire is local-first.
 
 It does not require an account, does not include analytics, and does not send telemetry.
 

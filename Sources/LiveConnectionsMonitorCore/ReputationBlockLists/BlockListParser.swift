@@ -28,6 +28,8 @@ public struct BlockListParser: Sendable {
             return normalizedDomain(line)
         case .url:
             return parseURLLike(line)
+        case .ipList:
+            return parseIPListLine(line)
         case .adblock:
             return parseAdblockLine(line)
         }
@@ -78,5 +80,41 @@ public struct BlockListParser: Sendable {
 
     private func isAddressLike(_ value: String) -> Bool {
         value.allSatisfy { $0.isNumber || $0 == "." || $0 == ":" } && value.contains(".")
+    }
+
+    private func parseIPListLine(_ line: String) -> String? {
+        let withoutComment = line.split(separator: ";", maxSplits: 1).first.map(String.init) ?? line
+        let tokens = withoutComment.split { $0 == " " || $0 == "\t" || $0 == "," }.map(String.init)
+        for token in tokens {
+            let trimmed = token.trimmingCharacters(in: CharacterSet(charactersIn: "\"'[]()"))
+            if isIPOrCIDR(trimmed) {
+                return trimmed.lowercased()
+            }
+        }
+        return nil
+    }
+
+    private func isIPOrCIDR(_ value: String) -> Bool {
+        let parts = value.split(separator: "/", maxSplits: 1).map(String.init)
+        guard parts.count == 1 || parts.count == 2 else { return false }
+        if parts.count == 2 {
+            guard let prefix = Int(parts[1]), prefix >= 0, prefix <= (parts[0].contains(":") ? 128 : 32) else {
+                return false
+            }
+        }
+        return isIPv4(parts[0]) || isIPv6(parts[0])
+    }
+
+    private func isIPv4(_ value: String) -> Bool {
+        let parts = value.split(separator: ".").map(String.init)
+        guard parts.count == 4 else { return false }
+        return parts.allSatisfy { part in
+            guard let octet = Int(part), octet >= 0, octet <= 255 else { return false }
+            return String(octet) == part || part == "0"
+        }
+    }
+
+    private func isIPv6(_ value: String) -> Bool {
+        value.contains(":") && value.allSatisfy { $0.isHexDigit || $0 == ":" }
     }
 }

@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "LiveConnectionsMonitor",
+    name: "GlossWire",
     platforms: [
         .macOS(.v14)
     ],

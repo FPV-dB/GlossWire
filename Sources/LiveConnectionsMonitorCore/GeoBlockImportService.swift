@@ -12,8 +12,12 @@ public struct GeoBlockImportService: Sendable {
     public init() {}
 
     public func importFile(url: URL, countryCode: String, countryName: String, sourceName: String, notes: String, database: FirewallDatabase) async throws -> GeoBlockImportResult {
+        let text = try String(contentsOf: url, encoding: .utf8)
+        return try await importText(text, countryCode: countryCode, countryName: countryName, sourceName: sourceName.isEmpty ? url.lastPathComponent : sourceName, notes: notes, database: database)
+    }
+
+    public func importText(_ text: String, countryCode: String, countryName: String, sourceName: String, notes: String, database: FirewallDatabase) async throws -> GeoBlockImportResult {
         try await Task.detached(priority: .utility) {
-            let text = try String(contentsOf: url, encoding: .utf8)
             var deduped: [String: (cidr: String, version: IPVersion, status: String)] = [:]
             var skipped = 0
             var warnings: [String] = [
@@ -36,7 +40,7 @@ public struct GeoBlockImportService: Sendable {
             try database.importGeoRanges(
                 countryCode: countryCode,
                 countryName: countryName,
-                sourceName: sourceName.isEmpty ? url.lastPathComponent : sourceName,
+                sourceName: sourceName,
                 notes: notes,
                 ranges: deduped.values.sorted { $0.cidr < $1.cidr },
                 skipped: skipped
@@ -54,6 +58,33 @@ public struct GeoBlockImportService: Sendable {
         let candidate = withoutComment
             .split(separator: ";", maxSplits: 1).first.map(String.init) ?? withoutComment
         return candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+public struct IPDenyCountrySource: Sendable {
+    public init() {}
+
+    public func download(countryCode: String, version: IPVersion) async throws -> String {
+        let code = countryCode.lowercased()
+        let address: String
+        switch version {
+        case .ipv4:
+            address = "https://www.ipdeny.com/ipblocks/data/aggregated/\(code)-aggregated.zone"
+        case .ipv6:
+            address = "https://www.ipdeny.com/ipv6/ipaddresses/aggregated/\(code)-aggregated.zone"
+        }
+        guard let url = URL(string: address) else { throw URLError(.badURL) }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 30
+        request.setValue("LiveConnectionsMonitor/1.0", forHTTPHeaderField: "User-Agent")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        guard let text = String(data: data, encoding: .utf8), !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw URLError(.cannotDecodeContentData)
+        }
+        return text
     }
 }
 

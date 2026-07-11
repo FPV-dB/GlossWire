@@ -9,6 +9,7 @@ public struct FirewallDashboardView: View {
     @EnvironmentObject private var throughputMonitor: NetworkThroughputMonitor
     @State private var showingImporter = false
     @State private var showingCountryImporter = false
+    @State private var showingCountryCatalog = false
     @State private var manualValue = ""
     @State private var allowValue = ""
     @State private var countryCode = ""
@@ -31,13 +32,7 @@ public struct FirewallDashboardView: View {
 
     public var body: some View {
         NavigationSplitView {
-            List(selection: $viewModel.selectedSection) {
-                ForEach(FirewallSection.allCases) { section in
-                    Label(section.rawValue, systemImage: section.systemImage)
-                        .tag(section)
-                }
-            }
-            .navigationTitle("Firewall")
+            sidebar
         } detail: {
             Group {
                 switch viewModel.selectedSection ?? .dashboard {
@@ -95,6 +90,22 @@ public struct FirewallDashboardView: View {
         } message: {
             Text("This writes and reloads only the app-managed PF anchor. Administrator permission will be requested.")
         }
+        .alert("Block Known Public Tor Relays?", isPresented: $viewModel.showTorBlockingConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Download Relays and Continue", role: .destructive) {
+                Task { await viewModel.enableTorBlocking() }
+            }
+        } message: {
+            Text("GlossWire will download the Tor Project's current public relay catalogue and add those addresses to the generated PF rules. This can disrupt Tor, .onion access, privacy tools, and legitimate services. Tor bridges and other proxies may still bypass IP-based blocking.")
+        }
+        .alert("Disable Tor Relay Blocking?", isPresented: $viewModel.showTorDisableConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Disable and Update Rules") {
+                Task { await viewModel.disableTorBlocking() }
+            }
+        } message: {
+            Text("The managed Tor relay blocklist will remain stored for audit history but will be disabled and removed from generated PF rules.")
+        }
         .sheet(isPresented: $viewModel.showLookupPrivacyWarning) {
             VStack(alignment: .leading, spacing: 14) {
                 Label("Third-party lookup", systemImage: "globe")
@@ -150,8 +161,92 @@ public struct FirewallDashboardView: View {
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.regularMaterial)
+                }
+        }
+        .overlay { AppTextureOverlay() }
+    }
+
+    private var sidebar: some View {
+        List(selection: $viewModel.selectedSection) {
+            sidebarBrand
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+
+            Section("MONITOR") {
+                sidebarRow(.dashboard)
+                sidebarRow(.liveConnections)
+                sidebarRow(.applications)
+            }
+
+            Section("PROTECTION") {
+                sidebarRow(.blockedIPs)
+                sidebarRow(.blocklists)
+                sidebarRow(.countryBlocking)
+                sidebarRow(.rules)
+            }
+
+            Section("TOOLS") {
+                sidebarRow(.logs)
+                sidebarRow(.nmapWorkbench)
+                sidebarRow(.settings)
+                sidebarRow(.about)
+            }
+
+            sidebarStatus
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+        }
+        .listStyle(.sidebar)
+        .navigationSplitViewColumnWidth(min: 210, ideal: 238, max: 270)
+    }
+
+    private var sidebarBrand: some View {
+        HStack(spacing: 11) {
+            Image(systemName: "shield.lefthalf.filled.badge.checkmark")
+                .font(.system(size: 21, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 42, height: 42)
+                .background(
+                    LinearGradient(colors: [.cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                )
+                .shadow(color: .blue.opacity(0.22), radius: 8, y: 4)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("GlossWire")
+                    .font(.headline)
+                    .lineLimit(1)
+                Text("Network control centre")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
+        .padding(.vertical, 10)
+    }
+
+    private func sidebarRow(_ section: FirewallSection) -> some View {
+        Label(section.rawValue, systemImage: section.systemImage)
+            .font(.body.weight(viewModel.selectedSection == section ? .semibold : .regular))
+            .symbolRenderingMode(.hierarchical)
+            .tag(section)
+            .padding(.vertical, 3)
+    }
+
+    private var sidebarStatus: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            HStack(spacing: 8) {
+                Image(systemName: "wave.3.right.circle.fill")
+                    .foregroundStyle(.green)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Live monitoring active")
+                        .font(.caption.weight(.semibold))
+                    Text("\(viewModel.snapshot.activeConnections) connections observed")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 8)
     }
 
     private var dashboard: some View {
@@ -163,14 +258,15 @@ public struct FirewallDashboardView: View {
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    dashboardWelcome
                     dashboardHero
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 12)], spacing: 12) {
                         MetricCard(title: "Active Connections", value: "\(viewModel.snapshot.activeConnections)", subtitle: "Observed now", systemImage: "network")
-                        MetricCard(title: "Blocked", value: "\(viewModel.snapshot.blockedIPs)", subtitle: "PF managed IPs", systemImage: "shield.fill", accentGradient: VisualTheme(colorScheme: .dark).dangerGradient)
+                        MetricCard(title: "Blocked Entries", value: "\(viewModel.snapshot.blockedIPs)", subtitle: "Enabled protection entries", systemImage: "shield.fill", accentGradient: VisualTheme(colorScheme: .dark).dangerGradient)
                         MetricCard(title: "Blocklists", value: "\(viewModel.snapshot.loadedBlocklists)", subtitle: "Loaded sources", systemImage: "list.bullet.rectangle")
-                        MetricCard(title: "Suspicious", value: "\(viewModel.snapshot.blocksInLastHour)", subtitle: "Blocks last hour", systemImage: "exclamationmark.triangle.fill", accentGradient: VisualTheme(colorScheme: .dark).warningGradient)
+                        MetricCard(title: "Recent Blocks", value: "\(viewModel.snapshot.blocksInLastHour)", subtitle: "Events in the last hour", systemImage: "exclamationmark.triangle.fill", accentGradient: VisualTheme(colorScheme: .dark).warningGradient)
                         MetricCard(title: "PF Status", value: viewModel.snapshot.pfStatus, subtitle: "Packet filter", systemImage: "switch.2")
-                        MetricCard(title: "Total Traffic", value: viewModel.snapshot.lastRuleReload.map(Self.dateFormatter.string(from:)) ?? "-", subtitle: "Last reload", systemImage: "arrow.triangle.2.circlepath")
+                        MetricCard(title: "Rules Reloaded", value: viewModel.snapshot.lastRuleReload.map(Self.shortTimeFormatter.string(from:)) ?? "Never", subtitle: "Last successful PF update", systemImage: "arrow.triangle.2.circlepath")
                     }
                     HStack(alignment: .top, spacing: 12) {
                         topList("Top remote IPs", rows: viewModel.snapshot.topRemoteIPs)
@@ -180,6 +276,30 @@ public struct FirewallDashboardView: View {
                 .padding(18)
             }
         }
+    }
+
+    private var dashboardWelcome: some View {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("NETWORK OVERVIEW")
+                    .font(.caption.weight(.bold))
+                    .tracking(1.3)
+                    .foregroundStyle(.cyan)
+                Text("Your connection activity at a glance")
+                    .font(.title2.weight(.semibold))
+                Text("Monitor traffic, review protections and investigate unusual destinations from one place.")
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button {
+                viewModel.selectedSection = .liveConnections
+            } label: {
+                Label("View live connections", systemImage: "arrow.right.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+        }
+        .padding(.horizontal, 2)
     }
 
     private var dashboardHero: some View {
@@ -319,6 +439,23 @@ public struct FirewallDashboardView: View {
                     .foregroundStyle(.secondary)
             }
             HStack {
+                Button {
+                    showingCountryCatalog = true
+                } label: {
+                    Label("Choose Countries", systemImage: "globe.americas.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                Text("Download current aggregated IPv4 and IPv6 country ranges from IPdeny.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            Divider()
+            Text("Or import a country CIDR file manually")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            HStack {
                 TextField("Code, e.g. AU", text: $countryCode)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 90)
@@ -384,6 +521,11 @@ public struct FirewallDashboardView: View {
             geoSimulationSummary
         }
         .padding(14)
+        .sheet(isPresented: $showingCountryCatalog) {
+            CountryBlockCatalogView(existingCodes: Set(viewModel.geoCountries.map(\.countryCode))) { countries, ipv4, ipv6 in
+                viewModel.importIPDenyCountries(countries, includeIPv4: ipv4, includeIPv6: ipv6)
+            }
+        }
         .fileImporter(isPresented: $showingCountryImporter, allowedContentTypes: [.plainText, .commaSeparatedText, UTType(filenameExtension: "zone") ?? .plainText, UTType(filenameExtension: "cidr") ?? .plainText, UTType(filenameExtension: "list") ?? .plainText]) { result in
             if case let .success(url) = result {
                 let accessing = url.startAccessingSecurityScopedResource()
@@ -476,6 +618,13 @@ public struct FirewallDashboardView: View {
         formatter.timeStyle = .medium
         return formatter
     }()
+
+    private static let shortTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter
+    }()
 }
 
 public struct FirewallLiveConnectionsPage: View {
@@ -483,6 +632,9 @@ public struct FirewallLiveConnectionsPage: View {
     @ObservedObject private var liveViewModel: LiveConnectionsViewModel
     @ObservedObject private var reputationStore = ReputationBlockListStore.shared
     @StateObject private var throughputViewModel: IPThroughputViewModel
+    @StateObject private var nmapViewModel = NmapScanViewModel()
+    @State private var showingNmapWorkbench = false
+    @State private var nmapTargetIP = ""
 
     public init(viewModel: FirewallDashboardViewModel) {
         self.viewModel = viewModel
@@ -509,6 +661,9 @@ public struct FirewallLiveConnectionsPage: View {
             if IPThroughputSettingsView.isEnabled {
                 throughputViewModel.select(ip: ip)
             }
+        }
+        .sheet(isPresented: $showingNmapWorkbench) {
+            NmapCustomScanView(viewModel: nmapViewModel, targetIP: nmapTargetIP)
         }
     }
 
@@ -565,6 +720,7 @@ public struct FirewallLiveConnectionsPage: View {
             .disabled(!canLookupSelected)
             Button("Copy IP") { viewModel.copySelectedRemoteIP() }
                 .disabled(liveViewModel.selectedConnection?.remote?.address == nil)
+            selectedNmapMenu
             Button("Block IP") { blockSelected() }
                 .disabled(liveViewModel.selectedConnection?.remote?.address == nil)
             Button("Refresh") { Task { await liveViewModel.refreshNow() } }
@@ -650,6 +806,7 @@ public struct FirewallLiveConnectionsPage: View {
                         Button("Block IP") { blockSelected() }
                             .disabled(connection.remote?.address == nil)
                     }
+                    selectedNmapMenu
                     Text("GeoIP and reputation results are approximate and can be wrong due to VPNs, CDNs, proxies, cloud hosting, and mobile networks.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -766,10 +923,51 @@ public struct FirewallLiveConnectionsPage: View {
         Button("Export Throughput CSV") {
             if let ip = connection.remote?.address { throughputViewModel.exportCSV(ip: ip) }
         }
+        Divider()
+        Menu("Nmap selected IP") {
+            Button("Quick Port Scan") { runNmap(.quick, connection: connection) }
+            Button("Service/Version Scan") { runNmap(.serviceVersion, connection: connection) }
+            Button("OS Detection Scan") { runNmap(.osDetection, connection: connection) }
+            Divider()
+            Button("Open Nmap Workbench...") { openNmapWorkbench(connection: connection) }
+        }
+        .disabled(connection.remote?.address == nil)
         Button("Block remote IP") {
             liveViewModel.selectedConnectionID = connection.id
             blockSelected()
         }
+    }
+
+    private var selectedNmapMenu: some View {
+        Menu {
+            Button("Quick Port Scan") { runNmap(.quick) }
+            Button("Service/Version Scan") { runNmap(.serviceVersion) }
+            Button("OS Detection Scan") { runNmap(.osDetection) }
+            Divider()
+            Button("Open Full Workbench...") { openNmapWorkbench() }
+        } label: {
+            Label("Nmap", systemImage: "dot.radiowaves.left.and.right")
+        }
+        .disabled(liveViewModel.selectedConnection?.remote?.address == nil)
+    }
+
+    private func runNmap(_ preset: NmapPreset, connection: NetworkConnection? = nil) {
+        let target = connection?.remote?.address ?? liveViewModel.selectedConnection?.remote?.address
+        guard let target else { return }
+        if let connection { liveViewModel.selectedConnectionID = connection.id }
+        nmapTargetIP = target
+        nmapViewModel.setWorkbenchTarget(target)
+        showingNmapWorkbench = true
+        nmapViewModel.runPreset(preset, target: target)
+    }
+
+    private func openNmapWorkbench(connection: NetworkConnection? = nil) {
+        let target = connection?.remote?.address ?? liveViewModel.selectedConnection?.remote?.address
+        guard let target else { return }
+        if let connection { liveViewModel.selectedConnectionID = connection.id }
+        nmapTargetIP = target
+        nmapViewModel.setWorkbenchTarget(target)
+        showingNmapWorkbench = true
     }
 
     private func detail(_ label: String, _ value: String) -> some View {
@@ -898,7 +1096,7 @@ public struct ConnectionManagerAboutView: View {
                         .font(.system(size: 42))
                         .foregroundStyle(.blue)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Connection Manager")
+                        Text("GlossWire")
                             .font(.largeTitle.weight(.semibold))
                         Text("Native macOS firewall dashboard and live connection monitor.")
                             .font(.title3)
@@ -907,7 +1105,7 @@ public struct ConnectionManagerAboutView: View {
                 }
 
                 aboutCard("What It Does") {
-                    Text("Connection Manager helps inspect live network activity, review process connections, manage app-owned PF firewall rules, import blocklists, and monitor throughput from the menu bar.")
+                    Text("GlossWire helps inspect live network activity, review process connections, manage app-owned PF firewall rules, import blocklists, and monitor throughput from the menu bar.")
                 }
 
                 aboutCard("Credits") {
@@ -978,25 +1176,43 @@ public struct FirewallSettingsView: View {
     @AppStorage("visual.compactMode") private var compactMode = false
     @AppStorage("visual.reduceAnimations") private var reduceAnimations = false
     @AppStorage("visual.highContrastMode") private var highContrastMode = false
+    @AppStorage("visual.texturePattern") private var texturePattern = AppTexturePattern.none.rawValue
+    @AppStorage("visual.textureIntensity") private var textureIntensity = 0.16
+    @AppStorage(DesktopThroughputBarController.enabledDefaultsKey) private var desktopThroughputBarEnabled = false
+    @AppStorage("desktopThroughputBar.opacity") private var desktopThroughputBarOpacity = 0.88
 
     public var body: some View {
         ScrollView {
             Form {
                 Section("Startup") {
-                    Toggle("Start Connection Manager at startup", isOn: Binding(
+                    Toggle("Start GlossWire at startup", isOn: Binding(
                         get: { viewModel.settings.launchAtLogin },
                         set: { viewModel.setLaunchAtLogin($0) }
                     ))
-                    Text("Uses the macOS login item service. When enabled with no startup protection mode selected, Connection Manager prepares Strict Startup Lock so non-loopback traffic is blocked until the app starts and synchronizes PF. If the status requires approval, enable Connection Manager in System Settings > Login Items.")
+                    Text("Uses the macOS login item service. When enabled with no startup protection mode selected, GlossWire prepares Strict Startup Lock so non-loopback traffic is blocked until the app starts and synchronizes PF. If the status requires approval, enable GlossWire in System Settings > Login Items.")
                         .foregroundStyle(.secondary)
                     LabeledContent("Status", value: viewModel.loginItemStatus)
                     LabeledContent("Last startup", value: viewModel.settings.lastStartupAt.map(Self.dateFormatter.string(from:)) ?? "-")
+                    HStack {
+                        LabeledContent("PF Enabled", value: viewModel.startupStatus.pfEnabled)
+                        Spacer()
+                        Button("Check Status") {
+                            Task { await viewModel.checkPFStatusWithAdministratorPrivileges() }
+                        }
+                        Button("Enable PF") {
+                            Task { await viewModel.enablePF() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 }
 
                 Section("Startup Protection") {
                     Text("This feature can affect network connectivity during startup. Incorrect firewall rules may temporarily prevent internet access until corrected.")
                         .foregroundStyle(.orange)
-                    Picker("Startup Mode", selection: $viewModel.settings.startupMode) {
+                    Picker("Startup Mode", selection: Binding(
+                        get: { viewModel.settings.startupMode },
+                        set: { viewModel.setStartupMode($0) }
+                    )) {
                         ForEach(StartupProtectionMode.allCases) { mode in
                             Text(mode.rawValue).tag(mode)
                         }
@@ -1006,7 +1222,6 @@ public struct FirewallSettingsView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    LabeledContent("PF Enabled", value: viewModel.startupStatus.pfEnabled)
                     LabeledContent("Startup Anchor Installed", value: viewModel.startupStatus.startupAnchorInstalled ? "Yes" : "No")
                     LabeledContent("Rules Loaded", value: viewModel.startupStatus.rulesLoaded ? "Yes" : "No")
                     LabeledContent("Last Synchronization", value: viewModel.startupStatus.lastSynchronization.map(Self.dateFormatter.string(from:)) ?? "-")
@@ -1024,6 +1239,21 @@ public struct FirewallSettingsView: View {
                 }
 
                 Section("Firewall") {
+                    Toggle("Block known public Tor relays and exits", isOn: Binding(
+                        get: { viewModel.settings.blockKnownTorRelays },
+                        set: { viewModel.requestTorBlocking($0) }
+                    ))
+                    Text("Uses the Tor Project Onionoo catalogue of currently running public relays. Helps prevent direct Tor and .onion access, but bridges and other proxies can bypass IP-based blocking.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    LabeledContent("Known relay addresses", value: viewModel.torRelayRangeCount.formatted())
+                    LabeledContent("Catalogue published", value: viewModel.settings.torRangesLastUpdatedAt.map(Self.dateFormatter.string(from:)) ?? "Never")
+                    if let progress = viewModel.torBlockingProgress { ProgressView(progress) }
+                    Button("Refresh Tor Relay Ranges") {
+                        Task { await viewModel.refreshTorRanges() }
+                    }
+                    .disabled(!viewModel.settings.blockKnownTorRelays || viewModel.torBlockingProgress != nil)
+                    Divider()
                     Toggle("Auto-apply imported blocklists", isOn: $viewModel.settings.autoApplyImportedBlocklists)
                     Toggle("Block live connections that match enabled Block Lists", isOn: Binding(
                         get: { viewModel.settings.blockReputationMatchedConnections },
@@ -1055,6 +1285,25 @@ public struct FirewallSettingsView: View {
                         Task { await viewModel.refreshGoogleRanges() }
                     }
                     .disabled(!viewModel.settings.blockKnownGoogleConnections || viewModel.googleBlockingProgress != nil)
+
+                    Divider()
+
+                    Toggle("Block all published Microsoft and Azure IP ranges", isOn: Binding(
+                        get: { viewModel.settings.blockKnownMicrosoftConnections },
+                        set: { viewModel.requestMicrosoftBlocking($0) }
+                    ))
+                    Text("Uses Microsoft's public Azure service tag feed. This is IP-range blocking and includes customer-hosted Azure services; Microsoft 365 and other Microsoft products may also break depending on routing.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    LabeledContent("Managed ranges", value: viewModel.microsoftRangeCount.formatted())
+                    LabeledContent("Last refreshed", value: viewModel.settings.microsoftRangesLastUpdatedAt.map(Self.dateFormatter.string(from:)) ?? "Never")
+                    if let progress = viewModel.microsoftBlockingProgress {
+                        ProgressView(progress)
+                    }
+                    Button("Refresh Microsoft Ranges") {
+                        Task { await viewModel.refreshMicrosoftRanges() }
+                    }
+                    .disabled(!viewModel.settings.blockKnownMicrosoftConnections || viewModel.microsoftBlockingProgress != nil)
                 }
 
                 Section("Live Connections") {
@@ -1081,6 +1330,21 @@ public struct FirewallSettingsView: View {
                         }
                     }
                     Text("Measures byte-counter deltas across active non-loopback interfaces. Choose auto-scaling or a fixed KB/MB/GB/Kb/Mb/Gb display unit for the menu bar and popover.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Desktop Throughput Bar") {
+                    Toggle("Show transparent throughput bar on the desktop", isOn: $desktopThroughputBarEnabled)
+                    Slider(value: $desktopThroughputBarOpacity, in: 0.25...1.0) {
+                        Text("Overlay opacity")
+                    } minimumValueLabel: {
+                        Text("25%")
+                    } maximumValueLabel: {
+                        Text("100%")
+                    }
+                    LabeledContent("Opacity", value: "\(Int((desktopThroughputBarOpacity * 100).rounded()))%")
+                    Text("Shows real-time download and upload speed in a draggable glass bar above other windows. It appears on every Space, remembers its position, and can be hidden from its close button or this setting.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -1119,6 +1383,19 @@ public struct FirewallSettingsView: View {
                     Toggle("Compact mode", isOn: $compactMode)
                     Toggle("Reduce animations", isOn: $reduceAnimations)
                     Toggle("High contrast mode", isOn: $highContrastMode)
+                    Picker("Texture overlay", selection: $texturePattern) {
+                        ForEach(AppTexturePattern.allCases) { pattern in
+                            Text(pattern.rawValue).tag(pattern.rawValue)
+                        }
+                    }
+                    Slider(value: $textureIntensity, in: 0.04...0.32) {
+                        Text("Texture intensity")
+                    } minimumValueLabel: {
+                        Text("Subtle")
+                    } maximumValueLabel: {
+                        Text("Strong")
+                    }
+                    .disabled(texturePattern == AppTexturePattern.none.rawValue)
                     Text("These settings are visual only and do not change firewall, logging, menu bar, or Nmap behavior.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -1140,7 +1417,7 @@ public struct FirewallSettingsView: View {
                 acknowledgedStartupRisk = false
             }
         } message: {
-            Text("Connection Manager will install and load the dedicated startup PF anchor \(StartupProtectionService.startupAnchor). Incorrect firewall rules may temporarily prevent internet access until corrected.")
+            Text("GlossWire will install and load the dedicated startup PF anchor \(StartupProtectionService.startupAnchor). Incorrect firewall rules may temporarily prevent internet access until corrected.")
         }
         .alert("Strict Startup Lock", isPresented: $viewModel.showStrictStartupConfirmation) {
             Toggle("I have read the recovery warning and accept the risk.", isOn: $acknowledgedStrictRisk)
@@ -1150,7 +1427,7 @@ public struct FirewallSettingsView: View {
                 acknowledgedStrictRisk = false
             }
         } message: {
-            Text("Strict Startup Lock blocks all non-loopback traffic until Connection Manager starts and synchronizes PF. Recovery: reopen Settings and use Rollback Startup Protection, or remove /etc/pf.anchors/com.connectionmanager.startup with administrator privileges and reload that anchor.")
+            Text("Strict Startup Lock blocks all non-loopback traffic until GlossWire starts and synchronizes PF. Recovery: reopen Settings and use Rollback Startup Protection, or remove /etc/pf.anchors/com.connectionmanager.startup with administrator privileges and reload that anchor.")
         }
         .alert("Block Known Google Connections?", isPresented: $viewModel.showGoogleBlockingConfirmation) {
             Button("Cancel", role: .cancel) {}
@@ -1167,6 +1444,22 @@ public struct FirewallSettingsView: View {
             }
         } message: {
             Text("The managed Google blocklist will remain stored for audit history but will be disabled and removed from generated PF rules.")
+        }
+        .alert("Block Known Microsoft Connections?", isPresented: $viewModel.showMicrosoftBlockingConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Download Ranges and Continue", role: .destructive) {
+                Task { await viewModel.enableMicrosoftBlocking() }
+            }
+        } message: {
+            Text("This broad block includes Azure public service ranges and may affect Microsoft services, Microsoft-hosted APIs, update services, and unrelated websites hosted on Azure. The published service tag feed will be downloaded, previewed in the app-managed PF anchor, and applied through the normal administrator-confirmation flow.")
+        }
+        .alert("Disable Microsoft Blocking?", isPresented: $viewModel.showMicrosoftDisableConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Disable and Update Rules") {
+                Task { await viewModel.disableMicrosoftBlocking() }
+            }
+        } message: {
+            Text("The managed Microsoft blocklist will remain stored for audit history but will be disabled and removed from generated PF rules.")
         }
     }
 

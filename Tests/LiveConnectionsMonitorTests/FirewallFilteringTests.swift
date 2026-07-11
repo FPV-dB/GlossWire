@@ -62,6 +62,7 @@ func capturedGoogleResolutionIsBlocked(hostname: String, address: String, expect
     #expect(rules.contains("block drop quick all"))
     #expect(!rules.contains("to port { 53 67 68 123 }"))
     #expect(!rules.contains("from port { 53 67 68 123 }"))
+    #expect(StartupProtectionService.startupLaunchDaemonPath == "/Library/LaunchDaemons/com.connectionmanager.startup.plist")
 }
 
 @Test func legacySavedAnchorSettingsMigrateToConnectionManagerAnchor() throws {

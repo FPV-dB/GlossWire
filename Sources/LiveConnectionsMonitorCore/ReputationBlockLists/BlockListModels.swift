@@ -6,6 +6,15 @@ public enum ReputationBlockListCategory: String, CaseIterable, Codable, Identifi
     case privacy = "Privacy"
     case malwareSecurity = "Malware protection, security"
     case annoyances = "Annoyances"
+    case attacks = "FireHOL · Attacks"
+    case abuse = "FireHOL · Abuse"
+    case anonymizers = "FireHOL · Anonymizers"
+    case organizations = "FireHOL · Organizations"
+    case reputation = "FireHOL · Reputation"
+    case spam = "FireHOL · Spam"
+    case malware = "FireHOL · Malware"
+    case unroutable = "FireHOL · Unroutable"
+    case geolocation = "FireHOL · Geolocation"
     case miscellaneous = "Miscellaneous"
 
     public var id: String { rawValue }
@@ -16,6 +25,7 @@ public enum ReputationBlockListType: String, CaseIterable, Codable, Identifiable
     case adblock
     case domain
     case url
+    case ipList
 
     public var id: String { rawValue }
 }
@@ -108,9 +118,11 @@ public struct ReputationRule: Identifiable, Codable, Hashable, Sendable {
             return .adTracker
         case .privacy:
             return .privacy
-        case .malwareSecurity:
+        case .malwareSecurity, .attacks, .abuse, .reputation, .spam, .malware:
             return .malwareSecurity
-        case .default, .miscellaneous:
+        case .anonymizers:
+            return .privacy
+        case .default, .organizations, .unroutable, .geolocation, .miscellaneous:
             return .info
         }
     }
@@ -144,6 +156,14 @@ public enum ReputationBlockListCatalog {
         item("lan-block", "Block Outsider Intrusion into LAN", .privacy, "https://ublockorigin.github.io/uAssets/filters/lan-block.txt", "Rules intended to reduce outsider LAN intrusion patterns.", false, .adblock),
         item("badware", "uBlock filters - Badware risks", .malwareSecurity, "https://ublockorigin.github.io/uAssets/filters/badware.txt", "Badware and risky destination filters.", true, .adblock),
         item("urlhaus", "Malicious URL Blocklist", .malwareSecurity, "https://malware-filter.gitlab.io/malware-filter/urlhaus-filter-online.txt", "URLHaus-backed malicious URL filters.", true, .adblock),
+        item("spamhaus-drop", "Spamhaus DROP", .malwareSecurity, "https://www.spamhaus.org/drop/drop.txt", "High-confidence netblocks used by spam and cyber-crime operations.", false, .ipList),
+        item("dshield", "DShield Recommended Block List", .malwareSecurity, "https://www.dshield.org/block.txt", "Top attacking /24 networks observed by SANS ISC over recent days.", false, .ipList),
+        item("feodo-tracker", "abuse.ch Feodo Tracker C2 IPs", .malwareSecurity, "https://feodotracker.abuse.ch/downloads/ipblocklist.txt", "Botnet command-and-control IP addresses tracked by abuse.ch.", false, .ipList),
+        item("firehol-ipsum-3", "FireHOL IPsum Level 3", .malwareSecurity, "https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/ipsum_3.netset", "Aggregated IPs that appear on at least three public threat lists.", false, .ipList),
+        item("firehol-ipsum-4", "FireHOL IPsum Level 4", .malwareSecurity, "https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/ipsum_4.netset", "More conservative IPsum feed: IPs appearing on at least four public threat lists.", false, .ipList),
+        item("cins-army", "CINS Army", .malwareSecurity, "https://cinsscore.com/list/ci-badguys.txt", "Community threat-intelligence IP list from CINS/Nomic.", false, .ipList),
+        item("binary-defense-artillery", "Binary Defense Artillery", .malwareSecurity, "https://binarydefense.com/banlist.txt", "Honeypot-observed attacker IP feed. Review provider terms before redistribution/commercial use.", false, .ipList),
+        item("bitwire-malicious-outbound", "Bitwire IT · Malicious Outbound Destinations", .malwareSecurity, "https://raw.githubusercontent.com/bitwire-it/ipblocklist/main/outbound.txt", "Aggregated malicious destination, C2, botnet and malware infrastructure feed. Updated about every two hours; data licensed CC BY-NC-SA 4.0 by its maintainer.", false, .ipList),
         item("ai-widgets", "EasyList - AI Widgets", .annoyances, "https://easylist-downloads.adblockplus.org/ai.txt", "AI widget annoyance filters.", false, .adblock),
         item("cookie-notices", "EasyList/uBO - Cookie Notices", .annoyances, "https://ublockorigin.github.io/uAssets/filters/cookies.txt", "Cookie notice filters.", false, .adblock),
         item("notifications", "EasyList - Notifications", .annoyances, "https://easylist-downloads.adblockplus.org/notifications.txt", "Notification prompt filters.", false, .adblock),

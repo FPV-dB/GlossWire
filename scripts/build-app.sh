@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP="$ROOT/build/Live Connections Monitor.app"
+APP="$ROOT/build/GlossWire.app"
 EXE="$ROOT/.build/arm64-apple-macosx/release/LiveConnectionsMonitor"
 
 cd "$ROOT"
@@ -18,12 +18,12 @@ printf 'APPL????' > "$APP/Contents/PkgInfo"
 
 /usr/libexec/PlistBuddy -c 'Clear dict' \
   -c 'Add :CFBundleDevelopmentRegion string en' \
-  -c 'Add :CFBundleDisplayName string Firewall Dashboard' \
+  -c 'Add :CFBundleDisplayName string GlossWire' \
   -c 'Add :CFBundleExecutable string LiveConnectionsMonitor' \
   -c 'Add :CFBundleIconFile string ConmagIcon' \
   -c 'Add :CFBundleIdentifier string local.codex.LiveConnectionsMonitor' \
   -c 'Add :CFBundleInfoDictionaryVersion string 6.0' \
-  -c 'Add :CFBundleName string Firewall Dashboard' \
+  -c 'Add :CFBundleName string GlossWire' \
   -c 'Add :CFBundlePackageType string APPL' \
   -c 'Add :CFBundleShortVersionString string 1.0' \
   -c 'Add :CFBundleVersion string 1' \

@@ -107,6 +107,76 @@ import Testing
     #expect(ranges == ["8.8.8.0/24", "2001:4860::/32"])
 }
 
+@Test func parsesIPReputationFeedLines() {
+    let subscription = BlockListSubscription(
+        id: "test-ip-feed",
+        name: "Test IP Feed",
+        category: .malwareSecurity,
+        url: URL(string: "https://example.com/feed.txt")!,
+        description: "test",
+        isEnabledByDefault: false,
+        localCachePath: "test.txt",
+        listType: .ipList
+    )
+    let rules = BlockListParser().parse("""
+    # comment
+    203.0.113.4
+    198.51.100.0/24 ; listed range
+    10.0.0.999
+    bad.example
+    2001:db8::/32
+    """, subscription: subscription)
+
+    #expect(rules.map(\.value) == ["203.0.113.4", "198.51.100.0/24", "2001:db8::/32"])
+}
+
+@Test func publicIPReputationCatalogIncludesOptionalFeeds() {
+    let ids = Set(ReputationBlockListCatalog.subscriptions.map(\.id))
+    #expect(ids.isSuperset(of: [
+        "spamhaus-drop",
+        "dshield",
+        "feodo-tracker",
+        "firehol-ipsum-3",
+        "firehol-ipsum-4",
+        "cins-army",
+        "binary-defense-artillery"
+    ]))
+    #expect(ReputationBlockListCatalog.subscriptions.first { $0.id == "spamhaus-drop" }?.isEnabledByDefault == false)
+}
+
+@MainActor
+@Test func blockListStoreCanEnableAllLists() {
+    let suiteName = "LiveConnectionsMonitorTests-\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let store = ReputationBlockListStore(defaults: defaults)
+
+    store.resetRecommendedDefaults()
+    #expect(store.enabledIDs.count < ReputationBlockListCatalog.subscriptions.count)
+
+    store.enableAllLists()
+    #expect(store.enabledIDs == Set(ReputationBlockListCatalog.subscriptions.map(\.id)))
+}
+
+@Test func parsesMicrosoftServiceTagDocuments() throws {
+    let data = Data("""
+    {"changeNumber":1,"values":[
+      {"name":"AzureCloud","properties":{"addressPrefixes":["13.64.0.0/11","2603:1000::/24"]}},
+      {"name":"Ignored","properties":{"addressPrefixes":[]}}
+    ]}
+    """.utf8)
+    let ranges = try MicrosoftIPRangeService().parse(data: data)
+    #expect(ranges == ["13.64.0.0/11", "2603:1000::/24"])
+}
+
+@Test func extractsMicrosoftServiceTagManifestURL() throws {
+    let data = Data("""
+    <a href="https://download.microsoft.com/download/7/1/d/71d86715-5596-4529-9b13-da13a5de5b63/ServiceTags_Public_20260706.json">Download</a>
+    """.utf8)
+    let url = MicrosoftIPRangeService.extractManifestURL(from: data)
+    #expect(url?.absoluteString.hasSuffix("ServiceTags_Public_20260706.json") == true)
+}
+
 @Test func managedGoogleBlocklistRefreshReplacesEntries() throws {
     let url = FileManager.default.temporaryDirectory
         .appendingPathComponent(UUID().uuidString)
@@ -131,4 +201,22 @@ import Testing
 
     #expect(try database.blocklists().filter { $0.name == GoogleIPRangeService.managedBlocklistName }.count == 1)
     #expect(try database.entries().map(\.value) == ["8.8.4.0/24"])
+}
+
+@Test func firewallSettingsPersistMicrosoftBlockingState() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathExtension("sqlite")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let database = try FirewallDatabase(url: url)
+    let timestamp = Date(timeIntervalSince1970: 1234)
+
+    var settings = FirewallSettings()
+    settings.blockKnownMicrosoftConnections = true
+    settings.microsoftRangesLastUpdatedAt = timestamp
+    try database.save(settings: settings)
+
+    let reloaded = try database.settings()
+    #expect(reloaded.blockKnownMicrosoftConnections)
+    #expect(reloaded.microsoftRangesLastUpdatedAt == timestamp)
 }

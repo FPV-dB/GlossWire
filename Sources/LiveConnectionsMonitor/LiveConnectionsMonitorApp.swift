@@ -6,10 +6,14 @@ import SwiftUI
 struct LiveConnectionsMonitorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var viewModel: FirewallDashboardViewModel
-    @StateObject private var throughputMonitor = NetworkThroughputMonitor()
+    @StateObject private var throughputMonitor: NetworkThroughputMonitor
+    @StateObject private var desktopThroughputBarController: DesktopThroughputBarController
     @StateObject private var applicationNetworkViewModel: ApplicationNetworkViewModel
 
     init() {
+        let throughputMonitor = NetworkThroughputMonitor()
+        _throughputMonitor = StateObject(wrappedValue: throughputMonitor)
+        _desktopThroughputBarController = StateObject(wrappedValue: DesktopThroughputBarController(monitor: throughputMonitor))
         let database: FirewallDatabase
         do {
             database = try FirewallDatabase()
@@ -41,19 +45,20 @@ struct LiveConnectionsMonitorApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("Firewall Dashboard") {
+        WindowGroup("GlossWire") {
             FirewallDashboardView(viewModel: viewModel)
                 .environmentObject(throughputMonitor)
                 .environmentObject(applicationNetworkViewModel)
                 .frame(minWidth: 1180, minHeight: 720)
                 .background(WindowCloseHider())
+                .onAppear { desktopThroughputBarController.start() }
         }
         .windowStyle(.titleBar)
         .commands {
             CommandMenu("Connections") {
                 Button("Show Connections") {
                     NSApplication.shared.activate(ignoringOtherApps: true)
-                    NSApplication.shared.windows.first?.makeKeyAndOrderFront(nil)
+                    NSApplication.shared.windows.first { $0.canBecomeMain && !($0 is NSPanel) }?.makeKeyAndOrderFront(nil)
                 }
                 .keyboardShortcut("0", modifiers: [.command])
 
@@ -80,18 +85,40 @@ struct LiveConnectionsMonitorApp: App {
 
     private func showConnections() {
         NSApplication.shared.activate(ignoringOtherApps: true)
-        NSApplication.shared.windows.first?.makeKeyAndOrderFront(nil)
+        mainWindow?.makeKeyAndOrderFront(nil)
     }
 
     private func refreshConnections() {
         viewModel.reload()
         Task { await viewModel.liveConnectionsViewModel.refreshNow() }
     }
+
+    private var mainWindow: NSWindow? {
+        NSApplication.shared.windows.first { window in
+            window.canBecomeMain && !(window is NSPanel)
+        }
+    }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        guard Self.wasLaunchedAsLoginItem else { return }
+        DispatchQueue.main.async {
+            NSApplication.shared.windows.forEach { window in
+                guard window.canBecomeMain, !(window is NSPanel) else { return }
+                window.orderOut(nil)
+            }
+            NSApplication.shared.hide(nil)
+        }
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    private static var wasLaunchedAsLoginItem: Bool {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent else { return false }
+        return event.paramDescriptor(forKeyword: keyAELaunchedAsLogInItem) != nil
     }
 }
 

@@ -16,6 +16,7 @@ public final class ReputationBlockListStore: ObservableObject {
     private let enabledKey = "reputationBlockLists.enabledIDs"
     private let updatedKeyPrefix = "reputationBlockLists.lastUpdated."
     private let updateThrottle: TimeInterval = 12 * 60 * 60
+    private var hasLoadedFireHOLCatalog = false
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -52,12 +53,41 @@ public final class ReputationBlockListStore: ObservableObject {
         loadCachedIndex()
     }
 
+    public func enableAllLists() {
+        enabledIDs = Set(subscriptions.map(\.id))
+        persistEnabled()
+        loadCachedIndex()
+    }
+
     public func updateEnabledLists(force: Bool = true) async {
         await update(subscriptions.filter { enabledIDs.contains($0.id) }, force: force)
     }
 
     public func updateAllLists(force: Bool = true) async {
         await update(subscriptions, force: force)
+    }
+
+    public func loadFireHOLCatalog() async {
+        guard !hasLoadedFireHOLCatalog else { return }
+        hasLoadedFireHOLCatalog = true
+        statusMessage = "Loading FireHOL catalogue..."
+        do {
+            let remote = try await FireHOLCatalogService().subscriptions()
+            let existingIDs = Set(subscriptions.map(\.id))
+            let additions = remote.filter { !existingIDs.contains($0.id) }.map {
+                $0.with(lastUpdated: defaults.object(forKey: updatedKeyPrefix + $0.id) as? Date)
+            }
+            subscriptions.append(contentsOf: additions)
+            subscriptions.sort { lhs, rhs in
+                if lhs.category.rawValue != rhs.category.rawValue { return lhs.category.rawValue < rhs.category.rawValue }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+            statusMessage = "Loaded \(additions.count) separate FireHOL block lists. All are disabled by default."
+            loadCachedIndex()
+        } catch {
+            hasLoadedFireHOLCatalog = false
+            statusMessage = "FireHOL catalogue failed: \(error.localizedDescription)"
+        }
     }
 
     public func matches(for connection: NetworkConnection) -> [ReputationMatch] {

@@ -30,6 +30,7 @@ public actor StartupProtectionService {
     public static let rulesAnchor = "com.apple/com.connectionmanager.rules"
     public static let blocklistsAnchor = "com.apple/com.connectionmanager.blocklists"
     public static let startupAnchorPath = "/etc/pf.anchors/com.connectionmanager.startup"
+    public static let startupLaunchDaemonPath = "/Library/LaunchDaemons/com.connectionmanager.startup.plist"
 
     private let runner: CommandRunner
 
@@ -48,6 +49,20 @@ public actor StartupProtectionService {
         )
     }
 
+    public func enablePF() async throws -> String {
+        let output = try await runner.runAppleScriptWithAdministratorPrivileges(shellScript: "/sbin/pfctl -e >/dev/null 2>&1 || true; /sbin/pfctl -s info")
+        if output.localizedCaseInsensitiveContains("status: enabled") { return "Yes" }
+        if output.localizedCaseInsensitiveContains("status: disabled") { return "No" }
+        return "Unknown"
+    }
+
+    public func privilegedPFStatus() async throws -> String {
+        let output = try await runner.runAppleScriptWithAdministratorPrivileges(shellScript: "/sbin/pfctl -s info")
+        if output.localizedCaseInsensitiveContains("status: enabled") { return "Yes" }
+        if output.localizedCaseInsensitiveContains("status: disabled") { return "No" }
+        return "Unknown"
+    }
+
     public func install(mode: StartupProtectionMode, rulePreview: String, backup: Bool) async throws {
         let rules = Self.startupRules(mode: mode, rulePreview: rulePreview)
         let backupCommand = backup ? "if [ -f \"\(Self.startupAnchorPath)\" ]; then /bin/cp \"\(Self.startupAnchorPath)\" \"\(Self.startupAnchorPath).bak.$(/bin/date +%Y%m%d%H%M%S)\"; fi" : ":"
@@ -60,6 +75,7 @@ public actor StartupProtectionService {
         \(backupCommand)
         /usr/bin/install -m 0644 "$tmp" "\(Self.startupAnchorPath)"
         /bin/rm -f "$tmp"
+        \(Self.launchDaemonInstallScript(enabled: mode != .monitorOnly))
         /sbin/pfctl -a "\(Self.startupAnchor)" -f "\(Self.startupAnchorPath)"
         /sbin/pfctl -e >/dev/null 2>&1 || true
         """
@@ -85,9 +101,11 @@ public actor StartupProtectionService {
         let script = """
         set -e
         /bin/cat > "\(Self.startupAnchorPath)" <<'EOF'
-        # Managed by Connection Manager.
+        # Managed by GlossWire.
         # Startup protection disabled.
         EOF
+        /bin/rm -f "\(Self.startupLaunchDaemonPath)"
+        /bin/launchctl bootout system "\(Self.startupLaunchDaemonPath)" >/dev/null 2>&1 || true
         /sbin/pfctl -a "\(Self.startupAnchor)" -f "\(Self.startupAnchorPath)"
         """
         try await runner.runAppleScriptWithAdministratorPrivileges(shellScript: script)
@@ -97,19 +115,19 @@ public actor StartupProtectionService {
         switch mode {
         case .monitorOnly:
             return """
-            # Managed by Connection Manager.
+            # Managed by GlossWire.
             # Monitor Only: no startup PF rules.
             """
         case .protectionAtBoot:
             return """
-            # Managed by Connection Manager.
+            # Managed by GlossWire.
             # Startup anchor: \(Self.startupAnchor)
-            # Runtime synchronization after Connection Manager has started.
+            # Runtime synchronization after GlossWire has started.
             \(rulePreview)
             """
         case .strictStartupLock:
             return """
-            # Managed by Connection Manager.
+            # Managed by GlossWire.
             # Strict Startup Lock: advanced mode.
             # Allows local loopback only and blocks all other traffic until rules are synchronized.
             pass quick on lo0 all
@@ -122,6 +140,41 @@ public actor StartupProtectionService {
         guard let result = try? await runner.run("/sbin/pfctl", arguments: ["-s", "info"]) else { return "Unknown" }
         if result.output.localizedCaseInsensitiveContains("status: enabled") { return "Yes" }
         if result.output.localizedCaseInsensitiveContains("status: disabled") { return "No" }
+        if result.errorOutput.localizedCaseInsensitiveContains("permission denied") { return "Administrator check required" }
         return "Unknown"
+    }
+
+    private static func launchDaemonInstallScript(enabled: Bool) -> String {
+        guard enabled else {
+            return """
+            /bin/rm -f "\(startupLaunchDaemonPath)"
+            /bin/launchctl bootout system "\(startupLaunchDaemonPath)" >/dev/null 2>&1 || true
+            """
+        }
+        let command = "/sbin/pfctl -a \(startupAnchor) -f \(startupAnchorPath); /sbin/pfctl -e >/dev/null 2>&1 || true"
+        return """
+        /bin/cat > "\(startupLaunchDaemonPath)" <<'PLIST'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>Label</key>
+            <string>com.connectionmanager.startup</string>
+            <key>ProgramArguments</key>
+            <array>
+                <string>/bin/sh</string>
+                <string>-c</string>
+                <string>\(command)</string>
+            </array>
+            <key>RunAtLoad</key>
+            <true/>
+        </dict>
+        </plist>
+        PLIST
+        /usr/sbin/chown root:wheel "\(startupLaunchDaemonPath)"
+        /bin/chmod 0644 "\(startupLaunchDaemonPath)"
+        /bin/launchctl bootstrap system "\(startupLaunchDaemonPath)" >/dev/null 2>&1 || true
+        /bin/launchctl kickstart -k system/com.connectionmanager.startup >/dev/null 2>&1 || true
+        """
     }
 }

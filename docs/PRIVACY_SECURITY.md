@@ -1,10 +1,10 @@
-# Connection Manager Privacy And Security Notes
+# GlossWire Privacy And Security Notes
 
-Connection Manager is a local defensive network visibility and firewall management app. It is intentionally scoped to user-visible monitoring and user-confirmed PF rule changes.
+GlossWire is a local defensive network visibility and firewall management app. It is intentionally scoped to user-visible monitoring and user-confirmed PF rule changes.
 
 ## Local Data
 
-Connection Manager stores firewall and app state locally under Application Support.
+GlossWire stores firewall and app state locally under Application Support.
 
 Firewall state is stored in SQLite:
 
@@ -37,13 +37,13 @@ The app does not capture packet payloads. It observes endpoint and process metad
 
 ## Firewall Changes
 
-Connection Manager uses app-managed PF anchors. It does not flush unrelated PF rulesets and does not edit unrelated anchors.
+GlossWire uses app-managed PF anchors. It does not flush unrelated PF rulesets and does not edit unrelated anchors.
 
 Applying PF rules requires administrator approval. Generated rules should be reviewed before applying them.
 
 ## Data Leaving The Machine
 
-Connection Manager does not include analytics or telemetry.
+GlossWire does not include analytics or telemetry.
 
 Network-related data leaves the machine only when the user explicitly chooses an action that requires it, such as:
 
@@ -56,7 +56,7 @@ Private, local, multicast, broadcast, unspecified, and empty addresses are refus
 
 ## No Packet Capture Or Interception
 
-Connection Manager does not implement:
+GlossWire does not implement:
 
 - Packet capture.
 - Man-in-the-middle interception.
@@ -92,4 +92,4 @@ The intended security posture is conservative:
 5. Keep an audit trail.
 6. Provide rollback and recovery paths.
 
-Use Connection Manager as a visibility and rule-management tool, not as a substitute for a full enterprise firewall, EDR, or network security platform.
+Use GlossWire as a visibility and rule-management tool, not as a substitute for a full enterprise firewall, EDR, or network security platform.

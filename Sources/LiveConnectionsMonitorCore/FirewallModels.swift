@@ -170,6 +170,10 @@ public struct FirewallSettings: Hashable, Sendable {
     public var startupRulesLoaded = false
     public var blockKnownGoogleConnections = false
     public var googleRangesLastUpdatedAt: Date?
+    public var blockKnownMicrosoftConnections = false
+    public var microsoftRangesLastUpdatedAt: Date?
+    public var blockKnownTorRelays = false
+    public var torRangesLastUpdatedAt: Date?
     public var blockReputationMatchedConnections = false
 }
 
@@ -187,7 +191,7 @@ public enum StartupProtectionMode: String, CaseIterable, Identifiable, Sendable 
         case .protectionAtBoot:
             return "Existing app firewall rules remain active and synchronize after launch."
         case .strictStartupLock:
-            return "Advanced: block all non-loopback traffic until Connection Manager starts and synchronizes PF."
+            return "Advanced: block all non-loopback traffic until GlossWire starts and synchronizes PF."
         }
     }
 }

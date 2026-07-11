@@ -88,11 +88,13 @@ Settings include:
 
 - Menu bar throughput display.
 - Rate units and update intervals.
-- Startup behavior.
+- Start Connection Manager at startup using the macOS login item service.
 - Data Milestone Sounds.
 - GeoIP and reputation lookup provider options.
 - Firewall and persistence options.
 - Optional blocking for live connections that match enabled local blocklists.
+
+If the startup status says approval is required, enable Connection Manager in System Settings > Login Items.
 
 Startup protection can affect connectivity. Read the confirmation text carefully before enabling strict modes.
 

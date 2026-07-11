@@ -983,10 +983,12 @@ public struct FirewallSettingsView: View {
         ScrollView {
             Form {
                 Section("Startup") {
-                    Toggle("Launch Connection Manager on boot", isOn: Binding(
+                    Toggle("Start Connection Manager at startup", isOn: Binding(
                         get: { viewModel.settings.launchAtLogin },
                         set: { viewModel.setLaunchAtLogin($0) }
                     ))
+                    Text("Uses the macOS login item service. If the status requires approval, enable Connection Manager in System Settings > Login Items.")
+                        .foregroundStyle(.secondary)
                     LabeledContent("Status", value: viewModel.loginItemStatus)
                     LabeledContent("Last startup", value: viewModel.settings.lastStartupAt.map(Self.dateFormatter.string(from:)) ?? "-")
                 }

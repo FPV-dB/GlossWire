@@ -139,13 +139,13 @@ The app does not redirect traffic to localhost, does not flush the global PF rul
 
 Settings include a Startup section with:
 
-- Launch Connection Manager on boot.
+- Start Connection Manager at startup.
 - Startup Mode.
 - PF startup status.
 - Last startup timestamp.
 - Last synchronization timestamp.
 
-Launch at login uses Apple's modern login item APIs through `SMAppService`. Depending on local macOS policy, the user may still need to approve the login item in System Settings.
+Start at startup uses Apple's modern login item APIs through `SMAppService`. Depending on local macOS policy, the user may still need to approve Connection Manager in System Settings > Login Items.
 
 Startup protection is separate from launch at login. It uses dedicated PF anchors:
 

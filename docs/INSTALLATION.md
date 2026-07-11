@@ -56,7 +56,7 @@ The workbench looks for Nmap in common locations or at the custom path set in Se
 brew install nmap
 ```
 
-Scans are explicit user actions and accept public targets only. GlossWire does not run background or bulk scans.
+Scans are explicit user actions and accept local/private targets only. GlossWire does not run background or bulk scans.
 
 ## Updating
 

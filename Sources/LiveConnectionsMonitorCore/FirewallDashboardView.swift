@@ -42,6 +42,8 @@ public struct FirewallDashboardView: View {
                     FirewallLiveConnectionsPage(viewModel: viewModel)
                 case .applications:
                     ApplicationsNetworkView(viewModel: applicationNetworkViewModel)
+                case .timeline:
+                    ConnectionTimelineView(viewModel: applicationNetworkViewModel)
                 case .blockedIPs:
                     blockedIPs
                 case .blocklists:
@@ -184,6 +186,7 @@ public struct FirewallDashboardView: View {
                 sidebarRow(.dashboard)
                 sidebarRow(.liveConnections)
                 sidebarRow(.applications)
+                sidebarRow(.timeline)
             }
 
             Section("PROTECTION") {
@@ -793,6 +796,22 @@ public struct FirewallLiveConnectionsPage: View {
                     detail("Outbound rate", formatRate(connection.bytesOutPerSecond))
                     detail("First seen", Self.dateTimeFormatter.string(from: connection.firstSeen))
                     detail("Last seen", Self.dateTimeFormatter.string(from: connection.lastSeen))
+                }
+                let explanation = ConnectionExplanationService().explain(connection)
+                InspectorSection("Why is this connected?", systemImage: "questionmark.bubble") {
+                    Text(explanation.headline)
+                        .font(.headline)
+                    Text(explanation.explanation)
+                        .font(.callout)
+                        .textSelection(.enabled)
+                    ForEach(explanation.evidence, id: \.self) { item in
+                        Label(item, systemImage: "checkmark.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(explanation.confidence)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.orange)
                 }
                 InspectorSection("Block List Matches", systemImage: "exclamationmark.shield") {
                     ReputationMatchesView(

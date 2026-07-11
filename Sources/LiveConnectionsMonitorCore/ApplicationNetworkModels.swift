@@ -127,3 +127,25 @@ public enum AppMonitorInterval: Int, CaseIterable, Identifiable, Sendable {
     public var id: Int { rawValue }
     public var label: String { "\(rawValue)s" }
 }
+
+public enum ConnectionTimelineWindow: String, CaseIterable, Identifiable, Sendable {
+    case fiveMinutes = "5 minutes"
+    case thirtyMinutes = "30 minutes"
+    case oneHour = "1 hour"
+    case sixHours = "6 hours"
+    case twentyFourHours = "24 hours"
+    case all = "All retained"
+
+    public var id: String { rawValue }
+
+    public var interval: TimeInterval? {
+        switch self {
+        case .fiveMinutes: 5 * 60
+        case .thirtyMinutes: 30 * 60
+        case .oneHour: 60 * 60
+        case .sixHours: 6 * 60 * 60
+        case .twentyFourHours: 24 * 60 * 60
+        case .all: nil
+        }
+    }
+}

@@ -7,10 +7,14 @@ import UniformTypeIdentifiers
 public final class ApplicationNetworkViewModel: ObservableObject {
     @Published public private(set) var applications: [RunningAppNetworkSummary] = []
     @Published public private(set) var connectionHistory: [AppConnectionRecord] = []
+    @Published public private(set) var timelineHistory: [AppConnectionRecord] = []
     @Published public private(set) var samplesByApp: [String: [AppTrafficSample]] = [:]
     @Published public var selectedAppID: String? { didSet { loadSelectedHistory() } }
     @Published public var searchText = ""
     @Published public var connectionSearchText = ""
+    @Published public var timelineSearchText = ""
+    @Published public var timelineWindow: ConnectionTimelineWindow = .thirtyMinutes
+    @Published public var timelineReplayDate: Date?
     @Published public var connectionFilter: AppConnectionFilter = .all {
         didSet { UserDefaults.standard.set(connectionFilter.rawValue, forKey: "applications.connectionFilter") }
     }
@@ -22,6 +26,7 @@ public final class ApplicationNetworkViewModel: ObservableObject {
     @AppStorage("applications.showOnlyNetworkActivity") public var showOnlyNetworkActivity = false
     @AppStorage("applications.includeLoopback") public var includeLoopback = false
     @AppStorage("applications.historyLimit") public var historyLimit = 1_000
+    @AppStorage("applications.timelineDisplayLimit") public var timelineDisplayLimit = 5_000
     @AppStorage("applications.updateInterval") private var updateIntervalRaw = AppMonitorInterval.one.rawValue
 
     public let capabilities: AppProviderCapabilities
@@ -82,6 +87,25 @@ public final class ApplicationNetworkViewModel: ObservableObject {
         }
     }
 
+    public var filteredTimelineConnections: [AppConnectionRecord] {
+        let query = timelineSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return timelineHistory.filter { record in
+            if let timelineReplayDate, record.timestamp > timelineReplayDate { return false }
+            if query.isEmpty { return true }
+            return [
+                record.appBundleIdentifier, String(record.pid), record.direction.rawValue,
+                record.protocolKind.rawValue, record.localAddress, record.localPort,
+                record.remoteAddress ?? "", record.remotePort ?? "", record.remoteHostname ?? "",
+                record.countryCode ?? "", record.state, record.ruleAction.label
+            ].joined(separator: " ").lowercased().contains(query)
+        }
+    }
+
+    public var timelineDateRange: ClosedRange<Date>? {
+        guard let oldest = timelineHistory.last?.timestamp, let newest = timelineHistory.first?.timestamp else { return nil }
+        return oldest...max(oldest, newest)
+    }
+
     public func start() {
         guard refreshTask == nil else { return }
         restartLoop()
@@ -107,10 +131,37 @@ public final class ApplicationNetworkViewModel: ObservableObject {
             let limit = historyLimit
             try await Task.detached { try database.save(records, historyLimit: limit) }.value
             if selectedAppID != nil { await reloadSelectedHistory() }
+            await reloadTimeline()
         } catch {
             errorMessage = error.localizedDescription
         }
         isRefreshing = false
+    }
+
+    public func reloadTimeline() async {
+        let database = database
+        let limit = timelineDisplayLimit
+        let since = timelineWindow.interval.map { Date().addingTimeInterval(-$0) }
+        do {
+            timelineHistory = try await Task.detached { try database.recentConnections(limit: limit, since: since) }.value
+            if let replay = timelineReplayDate, let range = timelineDateRange, !range.contains(replay) {
+                timelineReplayDate = nil
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    public func setTimelineWindow(_ window: ConnectionTimelineWindow) {
+        timelineWindow = window
+        timelineReplayDate = nil
+        Task { await reloadTimeline() }
+    }
+
+    public func moveReplay(by interval: TimeInterval) {
+        guard let range = timelineDateRange else { return }
+        let current = timelineReplayDate ?? range.upperBound
+        timelineReplayDate = min(range.upperBound, max(range.lowerBound, current.addingTimeInterval(interval)))
     }
 
     public func icon(for app: RunningAppNetworkSummary) -> NSImage {

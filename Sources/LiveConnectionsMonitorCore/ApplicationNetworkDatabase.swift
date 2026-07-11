@@ -103,6 +103,55 @@ public final class ApplicationNetworkDatabase: @unchecked Sendable {
         }
     }
 
+    public func recentConnections(limit: Int, since: Date? = nil) throws -> [AppConnectionRecord] {
+        try queue.sync {
+            let sql: String
+            if since == nil {
+                sql = """
+                    SELECT id, timestamp, app_id, pid, direction, protocol, local_address, local_port,
+                           remote_address, remote_port, remote_hostname, country_code, state, bytes_sent,
+                           bytes_received, duration, rule_action
+                    FROM app_connection_history ORDER BY timestamp DESC LIMIT ?
+                    """
+            } else {
+                sql = """
+                    SELECT id, timestamp, app_id, pid, direction, protocol, local_address, local_port,
+                           remote_address, remote_port, remote_hostname, country_code, state, bytes_sent,
+                           bytes_received, duration, rule_action
+                    FROM app_connection_history WHERE timestamp >= ? ORDER BY timestamp DESC LIMIT ?
+                    """
+            }
+            let statement = try prepare(sql)
+            defer { sqlite3_finalize(statement) }
+            var bindIndex: Int32 = 1
+            if let since {
+                bind(since.timeIntervalSince1970, to: statement, at: bindIndex)
+                bindIndex += 1
+            }
+            bind(max(1, limit), to: statement, at: bindIndex)
+            var result: [AppConnectionRecord] = []
+            while sqlite3_step(statement) == SQLITE_ROW {
+                guard let id = text(statement, 0), let appID = text(statement, 2) else { continue }
+                result.append(AppConnectionRecord(
+                    id: id,
+                    timestamp: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
+                    appBundleIdentifier: appID,
+                    pid: Int(sqlite3_column_int64(statement, 3)),
+                    direction: AppConnectionDirection(rawValue: text(statement, 4) ?? "") ?? .outbound,
+                    protocolKind: NetworkProtocolKind(rawValue: text(statement, 5) ?? "") ?? .tcp,
+                    localAddress: text(statement, 6) ?? "",
+                    localPort: text(statement, 7) ?? "",
+                    remoteAddress: text(statement, 8), remotePort: text(statement, 9),
+                    remoteHostname: text(statement, 10), countryCode: text(statement, 11),
+                    state: text(statement, 12) ?? "", bytesSent: uint(statement, 13),
+                    bytesReceived: uint(statement, 14), duration: sqlite3_column_double(statement, 15),
+                    ruleAction: AppRuleAction(rawValue: text(statement, 16) ?? "") ?? .observed
+                ))
+            }
+            return result
+        }
+    }
+
     public func clearHistory(for appID: String) throws {
         try queue.sync { try execute("DELETE FROM app_connection_history WHERE app_id = ?", [appID]) }
     }

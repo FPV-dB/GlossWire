@@ -33,6 +33,21 @@ Use this view to:
 
 Private, local, multicast, broadcast, unspecified, and empty addresses are blocked from lookup and diagnostic actions.
 
+Select a row to open **Why is this connected?** in the inspector. GlossWire explains the likely service and application purpose using visible metadata such as process name, direction, protocol, port, and connection state. Explanations are explicitly labelled as inferences: encrypted payloads are not inspected, so the exact application action cannot be proven.
+
+## Connection Timeline And Flight Recorder
+
+The **Timeline** page combines retained application connection records into a single chronological investigation view. It supports:
+
+- Five-minute, 30-minute, one-hour, six-hour, 24-hour, and all-retained windows.
+- Search across process identifiers, PIDs, IP addresses, hostnames, ports, countries, states, directions, protocols, and rule outcomes.
+- Summary counts for visible records, processes, remote IPs, and countries.
+- A flight-recorder scrubber with one-minute back/forward steps.
+- **Return to Live** to remove the replay cutoff.
+- Configurable display limits up to 25,000 retained rows.
+
+Replay changes the visible historical cutoff; it does not generate network traffic or replay packet payloads. GlossWire stores endpoint and process metadata only.
+
 ### Nmap for a Selected IP
 
 Select a connection and use the Nmap menu in the toolbar or inspector for a Quick Port, Service/Version, or OS Detection scan. The row context menu offers the same actions. Results open in the existing Nmap workbench, where they can be stopped, reviewed, compared with history, or exported. The full workbench is prefilled with the selected remote IP. Nmap scanning is restricted to local/private targets by the app's existing target safety check.

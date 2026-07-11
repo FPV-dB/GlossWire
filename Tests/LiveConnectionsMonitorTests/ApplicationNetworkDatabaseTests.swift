@@ -38,3 +38,17 @@ import Testing
     let reopened = try ApplicationNetworkDatabase(url: url)
     #expect(try reopened.rules()["com.example.App"] == .manualBlock)
 }
+
+@Test func globalTimelineQueriesAcrossApplicationsAndRespectsTimeWindow() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let database = try ApplicationNetworkDatabase(url: directory.appendingPathComponent("applications.sqlite"))
+    let records = [
+        AppConnectionRecord(id: "old", timestamp: Date(timeIntervalSince1970: 1_000), appBundleIdentifier: "app.one", pid: 1, direction: .outbound, protocolKind: .tcp, localAddress: "192.0.2.1", localPort: "50000", remoteAddress: "198.51.100.1", remotePort: "443", remoteHostname: nil, countryCode: nil, state: "ESTABLISHED", bytesSent: nil, bytesReceived: nil, duration: 1, ruleAction: .observed),
+        AppConnectionRecord(id: "new", timestamp: Date(timeIntervalSince1970: 2_000), appBundleIdentifier: "app.two", pid: 2, direction: .outbound, protocolKind: .udp, localAddress: "192.0.2.1", localPort: "50001", remoteAddress: "203.0.113.2", remotePort: "53", remoteHostname: nil, countryCode: nil, state: "", bytesSent: nil, bytesReceived: nil, duration: 1, ruleAction: .observed)
+    ]
+    try database.save(records, historyLimit: 10)
+
+    #expect(try database.recentConnections(limit: 10).map(\.id) == ["new", "old"])
+    #expect(try database.recentConnections(limit: 10, since: Date(timeIntervalSince1970: 1_500)).map(\.id) == ["new"])
+}

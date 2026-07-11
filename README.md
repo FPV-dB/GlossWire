@@ -16,6 +16,7 @@ The app is intentionally conservative. It uses dedicated PF anchors, shows gener
 - [Blocklists And Provider Feeds](docs/BLOCKLISTS.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Development And Architecture](docs/DEVELOPMENT.md)
+- [Feature Roadmap](docs/ROADMAP.md)
 - [Privacy And Security Notes](docs/PRIVACY_SECURITY.md)
 - [Screenshots](docs/SCREENSHOTS.md)
 - [Google Filtering Audit](docs/GoogleFilteringAudit.md)
@@ -23,6 +24,8 @@ The app is intentionally conservative. It uses dedicated PF anchors, shows gener
 ## Highlights
 
 - Live TCP and UDP connection monitoring.
+- Persistent global Connection Timeline with process/IP filtering and flight-recorder replay controls.
+- Plain-English **Why is this connected?** explanations based on visible process, protocol, port, direction, and state metadata.
 - Menu bar download/upload throughput display.
 - Optional draggable glass throughput bar for the desktop and every Space.
 - Stable fixed-width menu bar speed formatting.
@@ -413,7 +416,7 @@ GlossWire does not implement:
 - Credential capture.
 - Deauthentication.
 - Exploitation.
-- Automatic or unsolicited port scanning. User-selected public targets can be scanned explicitly through the Nmap workbench when Nmap is installed.
+- Automatic or unsolicited port scanning. User-selected local/private targets can be scanned explicitly through the Nmap workbench when Nmap is installed.
 - Stealth behavior.
 - Traffic redirection.
 - Kernel extensions.

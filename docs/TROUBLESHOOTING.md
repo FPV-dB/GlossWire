@@ -34,7 +34,7 @@ Install it with Homebrew:
 brew install nmap
 ```
 
-Alternatively, set the exact executable path in Settings. GlossWire refuses local/private/unsafe targets for this public-target workbench.
+Alternatively, set the exact executable path in Settings. The workbench accepts local/private targets and refuses arbitrary public targets.
 
 ## Blocklist Download Fails
 

@@ -25,6 +25,9 @@ The app is intentionally conservative. It uses dedicated PF anchors, shows gener
 
 - Live TCP and UDP connection monitoring.
 - Persistent global Connection Timeline with process/IP filtering and flight-recorder replay controls.
+- Exportable network-session recordings from retained process/endpoint metadata.
+- Timeline analytics: process heatmap, country activity, connection lifetime histogram, and process/service relationships.
+- Presentation-safe Privacy Mode masking for timeline process names, addresses, hostnames, and paths.
 - Plain-English **Why is this connected?** explanations based on visible process, protocol, port, direction, and state metadata.
 - Menu bar download/upload throughput display.
 - Optional draggable glass throughput bar for the desktop and every Space.

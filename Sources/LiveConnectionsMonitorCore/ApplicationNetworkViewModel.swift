@@ -15,6 +15,9 @@ public final class ApplicationNetworkViewModel: ObservableObject {
     @Published public var timelineSearchText = ""
     @Published public var timelineWindow: ConnectionTimelineWindow = .thirtyMinutes
     @Published public var timelineReplayDate: Date?
+    @Published public private(set) var isRecordingSession = false
+    @Published public private(set) var recordingStartedAt: Date?
+    @Published public private(set) var recordedSession: [AppConnectionRecord] = []
     @Published public var connectionFilter: AppConnectionFilter = .all {
         didSet { UserDefaults.standard.set(connectionFilter.rawValue, forKey: "applications.connectionFilter") }
     }
@@ -27,6 +30,7 @@ public final class ApplicationNetworkViewModel: ObservableObject {
     @AppStorage("applications.includeLoopback") public var includeLoopback = false
     @AppStorage("applications.historyLimit") public var historyLimit = 1_000
     @AppStorage("applications.timelineDisplayLimit") public var timelineDisplayLimit = 5_000
+    @AppStorage("privacyMode.enabled") public var privacyModeEnabled = false
     @AppStorage("applications.updateInterval") private var updateIntervalRaw = AppMonitorInterval.one.rawValue
 
     public let capabilities: AppProviderCapabilities
@@ -132,6 +136,7 @@ public final class ApplicationNetworkViewModel: ObservableObject {
             try await Task.detached { try database.save(records, historyLimit: limit) }.value
             if selectedAppID != nil { await reloadSelectedHistory() }
             await reloadTimeline()
+            updateRecording()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -162,6 +167,41 @@ public final class ApplicationNetworkViewModel: ObservableObject {
         guard let range = timelineDateRange else { return }
         let current = timelineReplayDate ?? range.upperBound
         timelineReplayDate = min(range.upperBound, max(range.lowerBound, current.addingTimeInterval(interval)))
+    }
+
+    public func startSessionRecording() {
+        recordingStartedAt = Date()
+        recordedSession = []
+        isRecordingSession = true
+    }
+
+    public func stopSessionRecording() {
+        isRecordingSession = false
+    }
+
+    public func clearRecordedSession() {
+        isRecordingSession = false
+        recordingStartedAt = nil
+        recordedSession = []
+    }
+
+    public func exportRecordedSession(to url: URL) throws {
+        let header = "Time,Process,PID,Direction,Protocol,Local Address,Local Port,Remote Address,Remote Port,Hostname,Country,State,Duration,Rule"
+        let formatter = ISO8601DateFormatter()
+        let rows = recordedSession.map { record in
+            [formatter.string(from: record.timestamp), record.appBundleIdentifier, String(record.pid), record.direction.rawValue,
+             record.protocolKind.rawValue, record.localAddress, record.localPort, record.remoteAddress ?? "", record.remotePort ?? "",
+             record.remoteHostname ?? "", record.countryCode ?? "", record.state, String(format: "%.1f", record.duration), record.ruleAction.label]
+                .map(Self.csvEscape).joined(separator: ",")
+        }
+        try ([header] + rows).joined(separator: "\n").appending("\n").write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    private func updateRecording() {
+        guard isRecordingSession, let recordingStartedAt else { return }
+        var byID = Dictionary(uniqueKeysWithValues: recordedSession.map { ($0.id, $0) })
+        for record in timelineHistory where record.timestamp >= recordingStartedAt { byID[record.id] = record }
+        recordedSession = byID.values.sorted { $0.timestamp < $1.timestamp }
     }
 
     public func icon(for app: RunningAppNetworkSummary) -> NSImage {

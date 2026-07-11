@@ -48,6 +48,17 @@ The **Timeline** page combines retained application connection records into a si
 
 Replay changes the visible historical cutoff; it does not generate network traffic or replay packet payloads. GlossWire stores endpoint and process metadata only.
 
+Use **Record Session** to begin collecting the retained connection observations seen during a troubleshooting interval. **Stop Recording** freezes the session and **Export Session** writes a CSV containing timestamps, process identifiers, endpoints, protocols, durations, states, countries when available, and rule outcomes. The passive provider does not claim DNS- or TLS-handshake events it cannot observe.
+
+The Timeline view selector provides:
+
+- **Heatmap:** process rectangles ranked by observed bandwidth when per-flow bytes are available, otherwise by observation count.
+- **Countries:** connection observations grouped by country, with unenriched records labelled Unresolved.
+- **Lifetimes:** histogram buckets from sub-second through multi-day connections.
+- **Relationships:** process-to-service grouping based on known ports, with destination counts.
+
+Enable **Privacy Mode** before presenting or capturing the Timeline. It masks process identifiers, public addresses, hostnames, and paths in supported views without changing stored records.
+
 ### Nmap for a Selected IP
 
 Select a connection and use the Nmap menu in the toolbar or inspector for a Quick Port, Service/Version, or OS Detection scan. The row context menu offers the same actions. Results open in the existing Nmap workbench, where they can be stopped, reviewed, compared with history, or exported. The full workbench is prefilled with the selected remote IP. Nmap scanning is restricted to local/private targets by the app's existing target safety check.

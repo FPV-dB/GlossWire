@@ -30,3 +30,16 @@ import Testing
     #expect(explanation.headline.contains("mDNS"))
     #expect(explanation.evidence.contains { $0.contains("Bonjour") })
 }
+
+@Test func commonServiceLookupExplainsUnknownAndKnownPorts() {
+    #expect(ConnectionExplanationService.serviceName(for: "5353").contains("Bonjour"))
+    #expect(ConnectionExplanationService.serviceName(for: "65000") == "Port 65000")
+}
+
+@Test func privacyRedactorMasksAddressesHostnamesProcessesAndPaths() {
+    #expect(PrivacyRedactor.address("203.0.113.42", enabled: true) == "203.0.x.x")
+    #expect(PrivacyRedactor.hostname("api.example.com", enabled: true) == "hidden.example")
+    #expect(PrivacyRedactor.process("com.example.Secret", enabled: true) == "Application")
+    #expect(PrivacyRedactor.path("/Users/name/App", enabled: true) == "~/…/Application")
+    #expect(PrivacyRedactor.address("203.0.113.42", enabled: false) == "203.0.113.42")
+}

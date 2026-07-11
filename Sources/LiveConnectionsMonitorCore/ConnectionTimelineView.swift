@@ -1,7 +1,10 @@
+import AppKit
+import Charts
 import SwiftUI
 
 public struct ConnectionTimelineView: View {
     @ObservedObject private var viewModel: ApplicationNetworkViewModel
+    @State private var displayMode = TimelineDisplayMode.records
 
     public init(viewModel: ApplicationNetworkViewModel) {
         self.viewModel = viewModel
@@ -14,7 +17,20 @@ public struct ConnectionTimelineView: View {
                 header
                 replayControls
                 metrics
-                timelineTable
+                Picker("View", selection: $displayMode) {
+                    ForEach(TimelineDisplayMode.allCases) { mode in Text(mode.rawValue).tag(mode) }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 460)
+                Group {
+                    switch displayMode {
+                    case .records: timelineTable
+                    case .heatmap: bandwidthHeatmap
+                    case .countries: countryTimeline
+                    case .lifetimes: lifetimeHistogram
+                    case .relationships: relationshipView
+                    }
+                }
                 footer
             }
             .padding(16)
@@ -66,6 +82,8 @@ public struct ConnectionTimelineView: View {
             } label: {
                 Label("Retention", systemImage: "externaldrive")
             }
+            Toggle("Privacy Mode", isOn: $viewModel.privacyModeEnabled)
+                .toggleStyle(.switch)
             Button {
                 Task { await viewModel.refreshNow() }
             } label: {
@@ -99,6 +117,14 @@ public struct ConnectionTimelineView: View {
                     Label("Live", systemImage: "circle.fill")
                         .foregroundStyle(.green)
                 }
+                Divider().frame(height: 22)
+                if viewModel.isRecordingSession {
+                    Button("Stop Recording") { viewModel.stopSessionRecording() }.tint(.red)
+                    Text("\(viewModel.recordedSession.count) events").font(.caption.monospacedDigit())
+                } else {
+                    Button("Record Session") { viewModel.startSessionRecording() }
+                }
+                Button("Export Session") { exportSession() }.disabled(viewModel.recordedSession.isEmpty)
             }
         }
     }
@@ -142,7 +168,7 @@ public struct ConnectionTimelineView: View {
             .width(min: 150, ideal: 175)
             TableColumn("Process") { record in
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(record.appBundleIdentifier).lineLimit(1)
+                    Text(PrivacyRedactor.process(record.appBundleIdentifier, enabled: viewModel.privacyModeEnabled)).lineLimit(1)
                     Text("PID \(record.pid)").font(.caption2).foregroundStyle(.secondary)
                 }
             }
@@ -152,14 +178,14 @@ public struct ConnectionTimelineView: View {
             TableColumn("Protocol") { record in Text(record.protocolKind.rawValue.uppercased()) }
                 .width(70)
             TableColumn("Local") { record in
-                Text(endpoint(record.localAddress, record.localPort)).font(.caption.monospaced())
+                Text(endpoint(PrivacyRedactor.address(record.localAddress, enabled: viewModel.privacyModeEnabled), record.localPort)).font(.caption.monospaced())
             }
             .width(min: 140, ideal: 185)
             TableColumn("Remote") { record in
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(endpoint(record.remoteAddress ?? "-", record.remotePort ?? ""))
+                    Text(endpoint(PrivacyRedactor.address(record.remoteAddress, enabled: viewModel.privacyModeEnabled), record.remotePort ?? ""))
                         .font(.caption.monospaced())
-                    if let hostname = record.remoteHostname, !hostname.isEmpty {
+                    if let hostname = PrivacyRedactor.hostname(record.remoteHostname, enabled: viewModel.privacyModeEnabled) {
                         Text(hostname).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
@@ -188,7 +214,83 @@ public struct ConnectionTimelineView: View {
         .foregroundStyle(.secondary)
     }
 
+    private var bandwidthHeatmap: some View {
+        let groups = Dictionary(grouping: viewModel.filteredTimelineConnections, by: \.appBundleIdentifier)
+        let cells = groups.map { HeatmapCell(app: $0.key, records: $0.value) }.sorted { $0.weight > $1.weight }
+        return ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 10)], spacing: 10) {
+                ForEach(cells) { cell in
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(PrivacyRedactor.process(cell.app, enabled: viewModel.privacyModeEnabled)).font(.headline).lineLimit(1)
+                        Text("\(cell.records.count) observations").font(.caption)
+                        Text(cell.totalBytes == 0 ? "Per-flow bytes unavailable" : ByteCountFormatter.string(fromByteCount: Int64(clamping: cell.totalBytes), countStyle: .binary))
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 90, alignment: .topLeading)
+                    .padding(12)
+                    .background(cell.color.opacity(0.28), in: RoundedRectangle(cornerRadius: 12))
+                }
+            }
+        }
+    }
+
+    private var countryTimeline: some View {
+        let counts = Dictionary(grouping: viewModel.filteredTimelineConnections, by: { $0.countryCode ?? "Unresolved" }).mapValues(\.count)
+        let rows = counts.map { CountryRow(country: $0.key, count: $0.value) }.sorted { $0.count > $1.count }
+        return Chart(rows) { row in
+            BarMark(x: .value("Connections", row.count), y: .value("Country", row.country))
+                .foregroundStyle(row.country == "Unresolved" ? Color.secondary : Color.cyan)
+                .annotation(position: .trailing) { Text(row.count.formatted()).font(.caption.monospacedDigit()) }
+        }.chartXAxisLabel("Connection observations").padding(12)
+    }
+
+    private var lifetimeHistogram: some View {
+        let rows = LifetimeBucket.allCases.map { bucket in
+            LifetimeRow(bucket: bucket, count: viewModel.filteredTimelineConnections.filter { bucket.contains($0.duration) }.count)
+        }
+        return Chart(rows) { row in
+            BarMark(x: .value("Lifetime", row.bucket.rawValue), y: .value("Connections", row.count))
+                .foregroundStyle(.blue.gradient)
+                .annotation(position: .top) { Text(row.count.formatted()).font(.caption2.monospacedDigit()) }
+        }.chartYAxisLabel("Connection observations").padding(12)
+    }
+
+    private var relationshipView: some View {
+        let groups = Dictionary(grouping: viewModel.filteredTimelineConnections) { record in
+            RelationshipKey(app: record.appBundleIdentifier, service: ConnectionExplanationService.serviceName(for: record.remotePort ?? record.localPort))
+        }
+        let rows = groups.map { RelationshipRow(key: $0.key, records: $0.value) }.sorted { $0.records.count > $1.records.count }
+        return List(rows) { row in
+            HStack {
+                Image(systemName: "app.connected.to.app.below.fill").foregroundStyle(.cyan)
+                VStack(alignment: .leading) {
+                    Text(PrivacyRedactor.process(row.key.app, enabled: viewModel.privacyModeEnabled)).font(.headline)
+                    Text("└── \(row.key.service)").font(.callout.monospaced()).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("\(row.records.count) observations · \(Set(row.records.compactMap(\.remoteAddress)).count) destinations").font(.caption.monospacedDigit())
+            }
+        }
+    }
+
     private func endpoint(_ address: String, _ port: String) -> String {
         port.isEmpty ? address : "\(address):\(port)"
     }
+
+    private func exportSession() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.commaSeparatedText]
+        panel.nameFieldStringValue = "GlossWire-network-session.csv"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do { try viewModel.exportRecordedSession(to: url) }
+        catch { viewModel.errorMessage = "Could not export session: \(error.localizedDescription)" }
+    }
 }
+
+private enum TimelineDisplayMode: String, CaseIterable, Identifiable { case records = "Records", heatmap = "Heatmap", countries = "Countries", lifetimes = "Lifetimes", relationships = "Relationships"; var id: String { rawValue } }
+private struct HeatmapCell: Identifiable { let app: String; let records: [AppConnectionRecord]; var id: String { app }; var totalBytes: UInt64 { records.compactMap(\.bytesSent).reduce(0, +) + records.compactMap(\.bytesReceived).reduce(0, +) }; var weight: UInt64 { totalBytes > 0 ? totalBytes : UInt64(records.count) }; var color: Color { let up = records.compactMap(\.bytesSent).reduce(0, +); let down = records.compactMap(\.bytesReceived).reduce(0, +); return totalBytes == 0 ? .blue : up > down ? .orange : .cyan } }
+private struct CountryRow: Identifiable { let country: String; let count: Int; var id: String { country } }
+private enum LifetimeBucket: String, CaseIterable { case milliseconds = "<1s", seconds = "1–59s", minutes = "1–59m", hours = "1–23h", days = "1d+"; func contains(_ value: TimeInterval) -> Bool { switch self { case .milliseconds: value < 1; case .seconds: value >= 1 && value < 60; case .minutes: value >= 60 && value < 3600; case .hours: value >= 3600 && value < 86400; case .days: value >= 86400 } } }
+private struct LifetimeRow: Identifiable { let bucket: LifetimeBucket; let count: Int; var id: String { bucket.rawValue } }
+private struct RelationshipKey: Hashable { let app: String; let service: String }
+private struct RelationshipRow: Identifiable { let key: RelationshipKey; let records: [AppConnectionRecord]; var id: String { key.app + "|" + key.service } }

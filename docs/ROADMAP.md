@@ -8,6 +8,9 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - First-seen and last-seen timestamps for live connections.
 - Persistent per-application connection history.
 - Global Connection Timeline with rolling windows and flight-recorder scrubbing.
+- Exportable metadata-only network-session recording.
+- Process heatmap, country activity, lifetime histogram, and process/service relationship views.
+- Timeline Privacy Mode masking.
 - Throughput graphs and per-IP throughput history.
 - DNSBL, ASN, RDAP, reverse DNS, Tor checks, and 0–100 IP safety scoring.
 - Explicit local/private selected-target Nmap scans with history, comparison, favourites, and export.
@@ -22,7 +25,7 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - Automatic reverse-DNS enrichment in retained history with caching and expiry.
 - Compact WHOIS/RDAP ownership summaries.
 - ASN browser that filters current and historical connections.
-- Privacy Mode that masks public IPs, hostnames, usernames, and executable paths.
+- Extend Privacy Mode masking to every remaining dashboard, inspector, export, and menu-bar surface.
 - Exportable recorded investigation sessions.
 
 ## Phase 3 — Change And Baseline Detection

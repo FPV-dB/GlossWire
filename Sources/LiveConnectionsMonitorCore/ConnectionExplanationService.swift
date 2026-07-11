@@ -10,6 +10,10 @@ public struct ConnectionExplanation: Hashable, Sendable {
 public struct ConnectionExplanationService: Sendable {
     public init() {}
 
+    public static func serviceName(for port: String) -> String {
+        services[port]?.name ?? (port.isEmpty ? "Unknown service" : "Port \(port)")
+    }
+
     public func explain(_ connection: NetworkConnection, safetyReport: IPSafetyReport? = nil) -> ConnectionExplanation {
         let process = connection.processName.isEmpty ? "This process" : connection.processName
         let port = connection.remote?.port ?? connection.local.port

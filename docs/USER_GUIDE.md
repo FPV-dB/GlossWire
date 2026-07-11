@@ -82,6 +82,10 @@ Search and Privacy Mode apply to the intelligence views. These summaries describ
 
 Periodic signals are behavioral hints, not malware verdicts. Upload-spike, wake/idle attribution, VPN/DNS leak, executable-change, and inbound port-scan detection remain visibly capability-gated until GlossWire has the measured byte, power-state, route/DNS, executable-identity, or inbound-attempt telemetry needed to support them accurately.
 
+## Disable All Logs
+
+In **Settings → Logging and History**, enable **Disable all logs** to immediately stop new firewall event-log rows, application connection-history records, and Nmap scan-history entries. Live monitoring and firewall enforcement continue. Existing records are preserved for review or manual clearing; the toggle does not erase evidence.
+
 ### Nmap for a Selected IP
 
 Select a connection and use the Nmap menu in the toolbar or inspector for a Quick Port, Service/Version, or OS Detection scan. The row context menu offers the same actions. Results open in the existing Nmap workbench, where they can be stopped, reviewed, compared with history, or exported. The full workbench is prefilled with the selected remote IP. Nmap scanning is restricted to local/private targets by the app's existing target safety check.

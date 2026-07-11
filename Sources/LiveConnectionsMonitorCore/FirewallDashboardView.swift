@@ -1195,6 +1195,7 @@ public struct RulesPreviewView: View {
 }
 
 public struct FirewallSettingsView: View {
+    @AppStorage(GlossWireLogPolicy.defaultsKey) private var disableAllLogs = false
     @ObservedObject var viewModel: FirewallDashboardViewModel
     @EnvironmentObject private var throughputMonitor: NetworkThroughputMonitor
     @State private var acknowledgedStartupRisk = false
@@ -1214,6 +1215,14 @@ public struct FirewallSettingsView: View {
     public var body: some View {
         ScrollView {
             Form {
+                Section("Logging and History") {
+                    Toggle("Disable all logs", isOn: $disableAllLogs)
+                    Text("Stops new firewall event entries, application connection-history records, and Nmap scan-history entries immediately. Existing history is preserved and can still be viewed or cleared manually. Live monitoring and firewall enforcement continue to operate.")
+                        .foregroundStyle(disableAllLogs ? .orange : .secondary)
+                    if disableAllLogs {
+                        Label("Logging is disabled", systemImage: "eye.slash.fill").foregroundStyle(.orange)
+                    }
+                }
                 Section("Startup") {
                     Toggle("Start GlossWire at startup", isOn: Binding(
                         get: { viewModel.settings.launchAtLogin },

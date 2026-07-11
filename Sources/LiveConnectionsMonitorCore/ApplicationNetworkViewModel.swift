@@ -133,7 +133,9 @@ public final class ApplicationNetworkViewModel: ObservableObject {
             let database = database
             let records = snapshot.connections
             let limit = historyLimit
-            try await Task.detached { try database.save(records, historyLimit: limit) }.value
+            if !GlossWireLogPolicy.isDisabled {
+                try await Task.detached { try database.save(records, historyLimit: limit) }.value
+            }
             if selectedAppID != nil { await reloadSelectedHistory() }
             await reloadTimeline()
             updateRecording()

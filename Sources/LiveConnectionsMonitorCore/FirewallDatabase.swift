@@ -366,6 +366,7 @@ public final class FirewallDatabase: @unchecked Sendable {
     }
 
     public func insertEvent(type: String, message: String, detail: String = "", succeeded: Bool = true) throws {
+        guard !GlossWireLogPolicy.isDisabled else { return }
         try queue.sync {
             try insertEventLocked(type: type, message: message, detail: detail, succeeded: succeeded)
         }
@@ -461,6 +462,7 @@ public final class FirewallDatabase: @unchecked Sendable {
     }
 
     private func insertEventLocked(type: String, message: String, detail: String, succeeded: Bool) throws {
+        guard !GlossWireLogPolicy.isDisabled else { return }
         try execute("""
             INSERT INTO firewall_events (event_date, event_type, message, detail, succeeded)
             VALUES (?, ?, ?, ?, ?)

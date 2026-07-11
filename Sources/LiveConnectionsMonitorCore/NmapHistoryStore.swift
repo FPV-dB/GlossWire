@@ -23,6 +23,7 @@ public actor NmapHistoryStore {
     }
 
     public func append(_ item: NmapScanHistoryItem, limit: Int = 200) throws {
+        guard !GlossWireLogPolicy.isDisabled else { return }
         var items = try load()
         items.insert(item, at: 0)
         if items.count > limit {

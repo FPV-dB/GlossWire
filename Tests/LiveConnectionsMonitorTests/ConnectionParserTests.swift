@@ -220,3 +220,17 @@ import Testing
     #expect(reloaded.blockKnownMicrosoftConnections)
     #expect(reloaded.microsoftRangesLastUpdatedAt == timestamp)
 }
+
+@Test func firewallSettingsPersistBlockedNetworkServices() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString)
+        .appendingPathExtension("sqlite")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let database = try FirewallDatabase(url: url)
+    var settings = FirewallSettings()
+    settings.blockedServiceIDs = [NetworkServiceBlockPreset.vnc.id, NetworkServiceBlockPreset.smb.id]
+
+    try database.save(settings: settings)
+
+    #expect(try database.settings().blockedServiceIDs == settings.blockedServiceIDs)
+}

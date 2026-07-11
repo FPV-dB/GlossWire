@@ -1306,6 +1306,28 @@ public struct FirewallSettingsView: View {
                     .disabled(!viewModel.settings.blockKnownMicrosoftConnections || viewModel.microsoftBlockingProgress != nil)
                 }
 
+                Section("Service Blocking") {
+                    Text("Disable common remote-access and file-sharing services by blocking their conventional ports in both directions.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ForEach(NetworkServiceBlockPreset.allCases) { service in
+                        Toggle(isOn: Binding(
+                            get: { viewModel.settings.blockedServiceIDs.contains(service.id) },
+                            set: { viewModel.setServiceBlocked(service, enabled: $0) }
+                        )) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(service.name)
+                                Text(service.detail)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    Text("Port-based blocking cannot identify services moved to custom ports or tunnelled through VPN, SSH, HTTPS, or another encrypted transport.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+
                 Section("Live Connections") {
                     Picker("Refresh interval", selection: $viewModel.settings.refreshInterval) {
                         ForEach(RefreshInterval.allCases) { Text($0.rawValue).tag($0) }

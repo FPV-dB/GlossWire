@@ -59,6 +59,8 @@ The optional **Bitwire IT · Malicious Outbound Destinations** subscription is a
 
 Near the top of **Settings → Firewall**, **Block known public Tor relays and exits** downloads the Tor Project's current Onionoo public-relay catalogue. GlossWire asks for confirmation before enabling it and lets you refresh the catalogue later. It helps block direct Tor and `.onion` use, but Tor bridges and other proxies can bypass IP-only filtering.
 
+The **Service Blocking** section provides independent switches for VNC/Screen Sharing, Apple Remote Desktop administration, Microsoft RDP, SSH/SFTP, Telnet, FTP, SMB, and Windows RPC/NetBIOS. Each switch blocks the service's conventional ports in both directions and updates the generated PF rules. Review and approve the PF apply prompt to activate the change. Custom-port and tunnelled traffic cannot be identified by these port rules.
+
 Blocklist imports support simple text, IP list, and CSV-style files. The importer:
 
 - Ignores blank lines.

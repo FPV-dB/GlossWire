@@ -175,6 +175,68 @@ public struct FirewallSettings: Hashable, Sendable {
     public var blockKnownTorRelays = false
     public var torRangesLastUpdatedAt: Date?
     public var blockReputationMatchedConnections = false
+    public var blockedServiceIDs: Set<String> = []
+}
+
+public enum NetworkServiceBlockPreset: String, CaseIterable, Identifiable, Sendable {
+    case vnc = "vnc"
+    case appleRemoteDesktop = "apple-remote-desktop"
+    case remoteDesktop = "remote-desktop"
+    case ssh = "ssh"
+    case telnet = "telnet"
+    case ftp = "ftp"
+    case smb = "smb"
+    case windowsRemoteServices = "windows-remote-services"
+
+    public var id: String { rawValue }
+
+    public var name: String {
+        switch self {
+        case .vnc: "VNC and Screen Sharing"
+        case .appleRemoteDesktop: "Apple Remote Desktop administration"
+        case .remoteDesktop: "Microsoft Remote Desktop (RDP)"
+        case .ssh: "SSH and SFTP"
+        case .telnet: "Telnet"
+        case .ftp: "FTP"
+        case .smb: "SMB file sharing"
+        case .windowsRemoteServices: "Windows RPC and NetBIOS"
+        }
+    }
+
+    public var detail: String {
+        switch self {
+        case .vnc: "Blocks conventional RFB/VNC ports 5900–5999 in both directions."
+        case .appleRemoteDesktop: "Blocks the Apple Remote Desktop administration port 3283."
+        case .remoteDesktop: "Blocks the standard RDP port 3389."
+        case .ssh: "Blocks the standard SSH/SFTP port 22."
+        case .telnet: "Blocks the standard Telnet port 23."
+        case .ftp: "Blocks standard FTP control and data ports 20–21."
+        case .smb: "Blocks direct SMB file sharing on port 445."
+        case .windowsRemoteServices: "Blocks Windows RPC endpoint mapping and NetBIOS ports 135 and 137–139."
+        }
+    }
+
+    public var pfRules: [String] {
+        switch self {
+        case .vnc: bidirectional(protocols: ["tcp", "udp"], ports: "5900:5999")
+        case .appleRemoteDesktop: bidirectional(protocols: ["tcp", "udp"], ports: "3283")
+        case .remoteDesktop: bidirectional(protocols: ["tcp", "udp"], ports: "3389")
+        case .ssh: bidirectional(protocols: ["tcp"], ports: "22")
+        case .telnet: bidirectional(protocols: ["tcp"], ports: "23")
+        case .ftp: bidirectional(protocols: ["tcp"], ports: "{ 20 21 }")
+        case .smb: bidirectional(protocols: ["tcp"], ports: "445")
+        case .windowsRemoteServices: bidirectional(protocols: ["tcp", "udp"], ports: "{ 135 137 138 139 }")
+        }
+    }
+
+    private func bidirectional(protocols: [String], ports: String) -> [String] {
+        protocols.flatMap { proto in
+            [
+                "block drop in quick proto \(proto) from any to any port \(ports)",
+                "block drop out quick proto \(proto) from any to any port \(ports)"
+            ]
+        }
+    }
 }
 
 public enum StartupProtectionMode: String, CaseIterable, Identifiable, Sendable {

@@ -11,6 +11,15 @@ public struct FirewallRuleGenerator: Sendable {
             "# Do not place unrelated rules in this file.",
             ""
         ]
+        let blockedServices = NetworkServiceBlockPreset.allCases.filter { settings.blockedServiceIDs.contains($0.id) }
+        if !blockedServices.isEmpty {
+            lines.append("# Blocked Network Services")
+            for service in blockedServices {
+                lines.append("# \(service.name)")
+                lines.append(contentsOf: service.pfRules)
+            }
+            lines.append("")
+        }
         if !allowed.isEmpty {
             lines.append("# \(FirewallRuleGroup.trustedAllowlist.rawValue)")
             for value in allowed.sorted() where !value.isEmpty {

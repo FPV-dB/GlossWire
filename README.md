@@ -28,6 +28,7 @@ The app is intentionally conservative. It uses dedicated PF anchors, shows gener
 - Separately labelled, disabled-by-default FireHOL catalogue subscriptions.
 - A separately labelled, disabled-by-default Bitwire IT malicious outbound-destination feed.
 - Optional blocking of the Tor Project's currently known public relays and exits.
+- Independent Service Blocking toggles for conventional VNC/Screen Sharing, Apple Remote Desktop, RDP, SSH/SFTP, Telnet, FTP, SMB, and Windows RPC/NetBIOS ports.
 - Optional blocking of live connections that match enabled local reputation blocklists.
 - Trusted allowlist entries that override generated block rules.
 - Searchable multi-country IPv4/IPv6 CIDR imports from IPdeny, plus manual country-list imports.
@@ -272,6 +273,12 @@ The app stores the downloaded ranges in a managed blocklist, shows them in the n
 ## Known Tor Relay Blocking
 
 The **Block known public Tor relays and exits** toggle near the top of Firewall settings downloads the Tor Project Onionoo catalogue and maintains a separately labelled managed blocklist. Enabling or disabling it uses the normal PF preview and administrator-confirmation path. This can disrupt Tor and `.onion` access, but it cannot guarantee a complete Tor block because unpublished bridges and other proxies may bypass IP-based filtering.
+
+## Service Blocking
+
+Settings includes independent toggles for common remote-access and file-sharing services. GlossWire can block conventional VNC/Screen Sharing, Apple Remote Desktop administration, Microsoft RDP, SSH/SFTP, Telnet, FTP, SMB, and Windows RPC/NetBIOS ports in both directions. These rules appear in the generated PF preview and use the normal administrator-approved apply path.
+
+This is port-based protection. A service moved to a custom port or tunnelled through VPN, SSH, HTTPS, or another transport cannot be identified reliably by PF alone.
 
 ## Country Blocking
 

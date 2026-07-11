@@ -173,6 +173,27 @@ public final class FirewallDashboardViewModel: ObservableObject {
         saveSettings()
     }
 
+    public func setServiceBlocked(_ service: NetworkServiceBlockPreset, enabled: Bool) {
+        if enabled {
+            settings.blockedServiceIDs.insert(service.id)
+        } else {
+            settings.blockedServiceIDs.remove(service.id)
+        }
+        do {
+            try database.save(settings: settings)
+            try database.insertEvent(
+                type: enabled ? "Network service blocked" : "Network service unblocked",
+                message: service.name,
+                detail: service.detail,
+                succeeded: true
+            )
+            reload()
+            Task { await applyRulesIfAllowed() }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     public func refreshRulePreview() {
         rebuildPreview()
         rebuildSnapshot()

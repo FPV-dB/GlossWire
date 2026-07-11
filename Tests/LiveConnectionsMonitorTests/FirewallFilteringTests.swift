@@ -40,6 +40,25 @@ func capturedGoogleResolutionIsBlocked(hostname: String, address: String, expect
     #expect(passRange.lowerBound < blockRange.lowerBound)
 }
 
+@Test func serviceBlockingGeneratesBidirectionalRulesBeforeAllowlistExceptions() {
+    var settings = FirewallSettings()
+    settings.blockedServiceIDs = [
+        NetworkServiceBlockPreset.vnc.id,
+        NetworkServiceBlockPreset.remoteDesktop.id,
+        NetworkServiceBlockPreset.ssh.id
+    ]
+    let allowlist = [AllowlistEntry(id: 1, value: "192.0.2.10", note: "trusted", dateAdded: Date(), isEnabled: true)]
+    let rules = FirewallRuleGenerator().rules(for: [], allowlist: allowlist, settings: settings)
+
+    #expect(rules.contains("block drop in quick proto tcp from any to any port 5900:5999"))
+    #expect(rules.contains("block drop out quick proto udp from any to any port 5900:5999"))
+    #expect(rules.contains("block drop in quick proto tcp from any to any port 3389"))
+    #expect(rules.contains("block drop out quick proto tcp from any to any port 22"))
+    let serviceRule = try! #require(rules.range(of: "block drop in quick proto tcp from any to any port 5900:5999"))
+    let allowRule = try! #require(rules.range(of: "pass in quick from 192.0.2.10"))
+    #expect(serviceRule.lowerBound < allowRule.lowerBound)
+}
+
 @Test func evaluatorLogsFailedAndSuccessfulRuleReasons() {
     let result = FirewallRuleEvaluator().evaluate(address: "142.250.124.119", blockRules: googleRules, allowlist: [])
     #expect(result.evaluations[0].matched == false)

@@ -64,7 +64,7 @@ GlossWire does not implement:
 - Browser cookie or session access.
 - Traffic redirection.
 - Deauthentication.
-- Port scanning.
+- Automatic, background, or unsolicited port scanning. Explicit selected-target Nmap actions are available only after user initiation when Nmap is installed.
 - Exploitation.
 - Stealth behavior.
 - Kernel extensions.

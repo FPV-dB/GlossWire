@@ -11,6 +11,11 @@ The app is intentionally conservative. It uses dedicated PF anchors, shows gener
 ## Documentation
 
 - [User Guide](docs/USER_GUIDE.md)
+- [Installation And First Run](docs/INSTALLATION.md)
+- [Firewall, Startup Protection, And Recovery](docs/FIREWALL_AND_RECOVERY.md)
+- [Blocklists And Provider Feeds](docs/BLOCKLISTS.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Development And Architecture](docs/DEVELOPMENT.md)
 - [Privacy And Security Notes](docs/PRIVACY_SECURITY.md)
 - [Screenshots](docs/SCREENSHOTS.md)
 - [Google Filtering Audit](docs/GoogleFilteringAudit.md)
@@ -131,7 +136,7 @@ GlossWire uses macOS PF through app-managed anchors.
 The primary app anchor is:
 
 ```text
-com.connectionmanager.blocked
+com.apple/com.connectionmanager.blocked
 ```
 
 The default anchor file is:
@@ -393,7 +398,7 @@ Applying PF rules requires administrator permission.
 The current implementation uses AppleScript administrator privileges to write the app anchor and reload only that anchor:
 
 ```sh
-pfctl -a com.connectionmanager.blocked -f /etc/pf.anchors/com.connectionmanager.blocked
+pfctl -a com.apple/com.connectionmanager.blocked -f /etc/pf.anchors/com.connectionmanager.blocked
 pfctl -e
 ```
 
@@ -408,7 +413,7 @@ GlossWire does not implement:
 - Credential capture.
 - Deauthentication.
 - Exploitation.
-- Port scanning.
+- Automatic or unsolicited port scanning. User-selected public targets can be scanned explicitly through the Nmap workbench when Nmap is installed.
 - Stealth behavior.
 - Traffic redirection.
 - Kernel extensions.

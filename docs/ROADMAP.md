@@ -10,6 +10,8 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - Global Connection Timeline with rolling windows and flight-recorder scrubbing.
 - Exportable metadata-only network-session recording.
 - Process heatmap, country activity, lifetime histogram, and process/service relationship views.
+- Passive hourly **What Changed?** comparisons.
+- Observation-only LAN topology with common-service hints.
 - Timeline Privacy Mode masking.
 - Throughput graphs and per-IP throughput history.
 - DNSBL, ASN, RDAP, reverse DNS, Tor checks, and 0–100 IP safety scoring.
@@ -30,7 +32,7 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 
 ## Phase 3 — Change And Baseline Detection
 
-- Passive, informational **What Changed?** snapshots.
+- Longer-baseline **What Changed?** snapshots with configurable comparison windows.
 - New executable, destination, country, port, protocol, and IPv6-use alerts.
 - Executable signing and hash-change alerts.
 - Per-process connection-count and bandwidth baselines.

@@ -29,6 +29,8 @@ public struct ConnectionTimelineView: View {
                     case .countries: countryTimeline
                     case .lifetimes: lifetimeHistogram
                     case .relationships: relationshipView
+                    case .changes: whatChangedView
+                    case .topology: topologyView
                     }
                 }
                 footer
@@ -273,6 +275,68 @@ public struct ConnectionTimelineView: View {
         }
     }
 
+    private var whatChangedView: some View {
+        let summary = NetworkInvestigationAnalyzer().changes(records: viewModel.timelineHistory)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Changes since \(summary.currentStart.formatted(date: .omitted, time: .shortened))")
+                    .font(.title3.weight(.semibold))
+                changeGroup("New processes", values: summary.newProcesses, icon: "plus.app")
+                changeGroup("New destinations", values: summary.newDestinations.map { PrivacyRedactor.address($0, enabled: viewModel.privacyModeEnabled) }, icon: "plus.circle")
+                changeGroup("New ports", values: summary.newPorts.map { "\($0) — \(ConnectionExplanationService.serviceName(for: $0))" }, icon: "number.circle")
+                changeGroup("No longer observed", values: summary.disconnectedProcesses, icon: "minus.circle")
+                if let percent = summary.observationChangePercent {
+                    Label("Connection observations changed \(percent >= 0 ? "+" : "")\(percent)% from the previous hour.", systemImage: percent > 0 ? "arrow.up.right" : "arrow.down.right")
+                        .padding(12).background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+                } else {
+                    Text("A complete previous-hour window is not yet retained.").foregroundStyle(.secondary)
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
+        }
+    }
+
+    private func changeGroup(_ title: String, values: [String], icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Label(title, systemImage: icon).font(.headline)
+            if values.isEmpty { Text("No changes detected").foregroundStyle(.secondary) }
+            else { ForEach(values.prefix(20), id: \.self) { Text("• \($0)").font(.callout.monospaced()) } }
+        }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private var topologyView: some View {
+        let nodes = NetworkInvestigationAnalyzer().topology(records: viewModel.timelineHistory)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("This Mac", systemImage: "desktopcomputer").font(.title3.weight(.semibold))
+                Text("│").font(.title2.monospaced()).foregroundStyle(.secondary).padding(.leading, 12)
+                if nodes.isEmpty {
+                    ContentUnavailableView("No observed LAN devices", systemImage: "network.slash", description: Text("Topology is passive. Devices appear only after GlossWire observes a connection to a private address."))
+                }
+                ForEach(nodes) { node in
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("├──").font(.body.monospaced()).foregroundStyle(.secondary)
+                        Image(systemName: topologyIcon(node)).foregroundStyle(.cyan).frame(width: 24)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(node.name).font(.headline)
+                            Text(PrivacyRedactor.address(node.address, enabled: viewModel.privacyModeEnabled)).font(.caption.monospaced())
+                            Text(node.services.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text("\(node.observationCount) observations\nLast \(node.lastSeen.formatted(date: .omitted, time: .shortened))").font(.caption.monospacedDigit()).multilineTextAlignment(.trailing)
+                    }.padding(12).background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
+        }
+    }
+
+    private func topologyIcon(_ node: ObservedTopologyNode) -> String {
+        let text = (node.name + node.services.joined()).lowercased()
+        if text.contains("nas") || text.contains("file server") { return "externaldrive.connected.to.line.below" }
+        if text.contains("bonjour") { return "appletv" }
+        if text.contains("web") { return "server.rack" }
+        return "network"
+    }
+
     private func endpoint(_ address: String, _ port: String) -> String {
         port.isEmpty ? address : "\(address):\(port)"
     }
@@ -287,7 +351,7 @@ public struct ConnectionTimelineView: View {
     }
 }
 
-private enum TimelineDisplayMode: String, CaseIterable, Identifiable { case records = "Records", heatmap = "Heatmap", countries = "Countries", lifetimes = "Lifetimes", relationships = "Relationships"; var id: String { rawValue } }
+private enum TimelineDisplayMode: String, CaseIterable, Identifiable { case records = "Records", heatmap = "Heatmap", countries = "Countries", lifetimes = "Lifetimes", relationships = "Relationships", changes = "What Changed?", topology = "Topology"; var id: String { rawValue } }
 private struct HeatmapCell: Identifiable { let app: String; let records: [AppConnectionRecord]; var id: String { app }; var totalBytes: UInt64 { records.compactMap(\.bytesSent).reduce(0, +) + records.compactMap(\.bytesReceived).reduce(0, +) }; var weight: UInt64 { totalBytes > 0 ? totalBytes : UInt64(records.count) }; var color: Color { let up = records.compactMap(\.bytesSent).reduce(0, +); let down = records.compactMap(\.bytesReceived).reduce(0, +); return totalBytes == 0 ? .blue : up > down ? .orange : .cyan } }
 private struct CountryRow: Identifiable { let country: String; let count: Int; var id: String { country } }
 private enum LifetimeBucket: String, CaseIterable { case milliseconds = "<1s", seconds = "1–59s", minutes = "1–59m", hours = "1–23h", days = "1d+"; func contains(_ value: TimeInterval) -> Bool { switch self { case .milliseconds: value < 1; case .seconds: value >= 1 && value < 60; case .minutes: value >= 60 && value < 3600; case .hours: value >= 3600 && value < 86400; case .days: value >= 86400 } } }

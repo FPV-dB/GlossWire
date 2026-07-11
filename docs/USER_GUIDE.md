@@ -56,6 +56,8 @@ The Timeline view selector provides:
 - **Countries:** connection observations grouped by country, with unenriched records labelled Unresolved.
 - **Lifetimes:** histogram buckets from sub-second through multi-day connections.
 - **Relationships:** process-to-service grouping based on known ports, with destination counts.
+- **What Changed?:** compares the current hour with the previous hour for new processes, destinations, ports, disappeared processes, and observation-volume changes.
+- **Topology:** shows only private LAN devices already present in retained connection observations, with inferred service/device labels. It never initiates a discovery scan.
 
 Enable **Privacy Mode** before presenting or capturing the Timeline. It masks process identifiers, public addresses, hostnames, and paths in supported views without changing stored records.
 

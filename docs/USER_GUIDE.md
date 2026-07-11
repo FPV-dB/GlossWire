@@ -89,6 +89,10 @@ Internet ratings measure consistency and observable behavior; they are not reput
 
 In **Settings → Logging and History**, enable **Disable all logs** to immediately stop new firewall event-log rows, application connection-history records, and Nmap scan-history entries. Live monitoring and firewall enforcement continue. Existing records are preserved for review or manual clearing; the toggle does not erase evidence.
 
+## Internet Weather
+
+**Internet Weather** measures three ICMP round trips to `1.1.1.1`, DNS response time for `example.com`, IPv4 and IPv6 default-route availability, and the current IPv4 gateway. Samples are stored locally to build evidence for ISP-quality history; **Disable all logs** prevents new history writes. Failed ICMP or DNS probes can indicate filtering rather than a total outage. GlossWire does not contact a public-IP or ISP-identification API in this mode.
+
 ### Nmap for a Selected IP
 
 Select a connection and use the Nmap menu in the toolbar or inspector for a Quick Port, Service/Version, or OS Detection scan. The row context menu offers the same actions. Results open in the existing Nmap workbench, where they can be stopped, reviewed, compared with history, or exported. The full workbench is prefilled with the selected remote IP. Nmap scanning is restricted to local/private targets by the app's existing target safety check.

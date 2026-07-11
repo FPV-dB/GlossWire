@@ -73,6 +73,9 @@ struct LiveConnectionsMonitorApp: App {
         MenuBarExtra {
             NetworkThroughputPopover(
                 monitor: throughputMonitor,
+                activeConnections: viewModel.snapshot.activeConnections,
+                newConnectionsLastMinute: viewModel.connectionsFirstSeenInLastMinute,
+                recentAlerts: viewModel.recentSecurityEventCount,
                 showConnections: showConnections,
                 refreshConnections: refreshConnections,
                 quit: { NSApplication.shared.terminate(nil) }

@@ -11,6 +11,8 @@ GlossWire is a defensive macOS utility for network visibility and deliberate PF 
 
 Closing the main window hides it. The app continues running from the menu bar. When macOS launches GlossWire as a login item, the main window stays hidden automatically; choose **Show Connections** from the menu bar popover whenever you want to open it. Launching the app yourself from Finder or Applications still opens the window normally.
 
+The menu-bar popover doubles as a mini dashboard. Alongside current and peak throughput it shows active connections, connections first seen in the last minute, recent blocking/failure events, GlossWire's memory footprint, and system load. Internet latency remains labelled **Not sampled** until the optional Internet Weather sampler is enabled in a later milestone; opening the menu does not generate network probes.
+
 ## Desktop Throughput Bar
 
 Enable **Show transparent throughput bar on the desktop** in Settings > Desktop Throughput Bar to display a compact glass overlay containing the real download rate, upload rate, and recent activity graph. Use the opacity slider to adjust the complete overlay from 25% to 100%. Drag the bar to reposition it; its position is remembered. It appears across Spaces and stays above ordinary windows. Hover over it and use the close button to hide it, or disable it from Settings. The desktop bar is disabled by default and does not alter or simulate traffic.

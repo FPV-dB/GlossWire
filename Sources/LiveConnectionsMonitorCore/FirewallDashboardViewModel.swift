@@ -264,6 +264,18 @@ public final class FirewallDashboardViewModel: ObservableObject {
         blocklists.first(where: { $0.name == TorRelayRangeService.managedBlocklistName })?.entryCount ?? 0
     }
 
+    public var connectionsFirstSeenInLastMinute: Int {
+        let cutoff = Date().addingTimeInterval(-60)
+        return liveConnectionsViewModel.connections.filter { $0.firstSeen >= cutoff }.count
+    }
+
+    public var recentSecurityEventCount: Int {
+        let cutoff = Date().addingTimeInterval(-3600)
+        return events.filter { event in
+            event.date >= cutoff && (event.eventType.localizedCaseInsensitiveContains("block") || !event.succeeded)
+        }.count
+    }
+
     public func requestTorBlocking(_ enabled: Bool) {
         if enabled { showTorBlockingConfirmation = true } else { showTorDisableConfirmation = true }
     }

@@ -31,6 +31,7 @@ The app is intentionally conservative. It uses dedicated PF anchors, shows gener
 - Presentation-safe Privacy Mode masking for timeline process names, addresses, hostnames, and paths.
 - Plain-English **Why is this connected?** explanations based on visible process, protocol, port, direction, and state metadata.
 - Menu bar download/upload throughput display.
+- Menu-bar mini dashboard with active/new connections, recent alerts, memory footprint and system load.
 - Optional draggable glass throughput bar for the desktop and every Space.
 - Stable fixed-width menu bar speed formatting.
 - Auto-scaling or fixed rate units: B/s, KB/s, MB/s, GB/s, b/s, Kb/s, Mb/s, and Gb/s.

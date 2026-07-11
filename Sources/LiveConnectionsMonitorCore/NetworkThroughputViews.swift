@@ -1,4 +1,5 @@
 import SwiftUI
+import Darwin
 
 public struct ThroughputMenuBarLabel: View {
     private static let stableContentWidth: CGFloat = 164
@@ -63,17 +64,26 @@ public struct ThroughputMenuBarLabel: View {
 
 public struct NetworkThroughputPopover: View {
     @ObservedObject private var monitor: NetworkThroughputMonitor
+    private let activeConnections: Int
+    private let newConnectionsLastMinute: Int
+    private let recentAlerts: Int
     private let showConnections: () -> Void
     private let refreshConnections: () -> Void
     private let quit: () -> Void
 
     public init(
         monitor: NetworkThroughputMonitor,
+        activeConnections: Int = 0,
+        newConnectionsLastMinute: Int = 0,
+        recentAlerts: Int = 0,
         showConnections: @escaping () -> Void,
         refreshConnections: @escaping () -> Void,
         quit: @escaping () -> Void
     ) {
         self.monitor = monitor
+        self.activeConnections = activeConnections
+        self.newConnectionsLastMinute = newConnectionsLastMinute
+        self.recentAlerts = recentAlerts
         self.showConnections = showConnections
         self.refreshConnections = refreshConnections
         self.quit = quit
@@ -109,6 +119,8 @@ public struct NetworkThroughputPopover: View {
                                 .padding(6)
                         }
 
+                    miniDashboard
+
                     milestoneProgress
 
                     HStack {
@@ -128,6 +140,53 @@ public struct NetworkThroughputPopover: View {
             }
         }
         .frame(width: 350)
+    }
+
+    private var miniDashboard: some View {
+        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 7) {
+            GridRow {
+                miniMetric("Active", value: activeConnections.formatted(), icon: "network", color: .cyan)
+                miniMetric("New / min", value: newConnectionsLastMinute.formatted(), icon: "plus.circle", color: .green)
+            }
+            GridRow {
+                miniMetric("Alerts / hr", value: recentAlerts.formatted(), icon: "exclamationmark.triangle", color: recentAlerts > 0 ? .orange : .secondary)
+                miniMetric("Memory", value: Self.memoryFootprint, icon: "memorychip", color: .purple)
+            }
+            GridRow {
+                miniMetric("System load", value: Self.systemLoad, icon: "cpu", color: .blue)
+                miniMetric("Internet latency", value: "Not sampled", icon: "timer", color: .secondary)
+            }
+        }
+        .padding(9)
+        .background(.quaternary.opacity(0.28), in: RoundedRectangle(cornerRadius: 9))
+    }
+
+    private func miniMetric(_ title: String, value: String, icon: String, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon).foregroundStyle(color).frame(width: 15)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.caption2).foregroundStyle(.secondary)
+                Text(value).font(.caption.monospacedDigit()).lineLimit(1)
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private static var memoryFootprint: String {
+        var info = mach_task_basic_info()
+        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+            }
+        }
+        guard result == KERN_SUCCESS else { return "Unavailable" }
+        return ByteCountFormatter.string(fromByteCount: Int64(info.resident_size), countStyle: .memory)
+    }
+
+    private static var systemLoad: String {
+        var values = [Double](repeating: 0, count: 1)
+        guard getloadavg(&values, 1) == 1 else { return "Unavailable" }
+        return String(format: "%.2f", values[0])
     }
 
     private func metricRow(_ title: String, systemImage: String, value: String, color: Color) -> some View {

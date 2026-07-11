@@ -45,6 +45,7 @@ public final class FirewallDashboardViewModel: ObservableObject {
     private let startupProtectionService = StartupProtectionService()
     private let googleIPRangeService = GoogleIPRangeService()
     private let reputationStore = ReputationBlockListStore.shared
+    private var didSynchronizeStrictStartupLockAfterLaunch = false
 
     public init(database: FirewallDatabase, liveConnectionsViewModel: LiveConnectionsViewModel, firewallService: FirewallBlockService) {
         self.database = database
@@ -67,7 +68,10 @@ public final class FirewallDashboardViewModel: ObservableObject {
             loginItemStatus = loginItemService.status()
             rebuildPreview()
             rebuildSnapshot()
-            Task { await refreshStartupStatus() }
+            Task {
+                await refreshStartupStatus()
+                await synchronizeStrictStartupLockAfterLaunchIfNeeded()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -228,6 +232,10 @@ public final class FirewallDashboardViewModel: ObservableObject {
         do {
             try loginItemService.setEnabled(enabled)
             settings.launchAtLogin = enabled
+            if enabled && settings.startupMode == .monitorOnly {
+                settings.startupMode = .strictStartupLock
+                showStrictStartupConfirmation = true
+            }
             try database.save(settings: settings)
             loginItemStatus = loginItemService.status()
         } catch {
@@ -275,6 +283,23 @@ public final class FirewallDashboardViewModel: ObservableObject {
             try? database.insertEvent(type: "Startup protection failed", message: settings.startupMode.rawValue, detail: error.localizedDescription, succeeded: false)
             errorMessage = error.localizedDescription
             reload()
+        }
+    }
+
+    public func synchronizeStrictStartupLockAfterLaunchIfNeeded() async {
+        guard !didSynchronizeStrictStartupLockAfterLaunch else { return }
+        guard settings.launchAtLogin, settings.startupMode == .strictStartupLock, settings.startupRulesLoaded else { return }
+        didSynchronizeStrictStartupLockAfterLaunch = true
+        do {
+            try await startupProtectionService.synchronizeRuntimeAfterLaunch(rulePreview: rulePreview)
+            settings.lastStartupSynchronizationAt = Date()
+            try database.save(settings: settings)
+            try database.insertEvent(type: "Strict startup lock released", message: "Runtime PF anchor synchronized", detail: StartupProtectionService.startupAnchor, succeeded: true)
+            await refreshStartupStatus()
+        } catch {
+            didSynchronizeStrictStartupLockAfterLaunch = false
+            try? database.insertEvent(type: "Strict startup lock release failed", message: "Runtime PF anchor synchronization failed", detail: error.localizedDescription, succeeded: false)
+            errorMessage = error.localizedDescription
         }
     }
 

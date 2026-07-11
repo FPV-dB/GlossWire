@@ -187,7 +187,7 @@ public enum StartupProtectionMode: String, CaseIterable, Identifiable, Sendable 
         case .protectionAtBoot:
             return "Existing app firewall rules remain active and synchronize after launch."
         case .strictStartupLock:
-            return "Advanced: block non-essential traffic until Connection Manager starts."
+            return "Advanced: block all non-loopback traffic until Connection Manager starts and synchronizes PF."
         }
     }
 }

@@ -96,6 +96,8 @@ Settings include:
 
 If the startup status says approval is required, enable Connection Manager in System Settings > Login Items.
 
+When startup launch is enabled and no startup protection mode is already selected, Connection Manager selects Strict Startup Lock and asks for administrator approval to install the startup PF anchor. This startup anchor blocks all non-loopback traffic until Connection Manager starts. Once the app is running, it synchronizes the live PF startup anchor with the normal generated app rules while keeping the strict startup anchor on disk for the next boot.
+
 Startup protection can affect connectivity. Read the confirmation text carefully before enabling strict modes.
 
 ## Safe Operating Model

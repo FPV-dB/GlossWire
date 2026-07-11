@@ -147,6 +147,8 @@ Settings include a Startup section with:
 
 Start at startup uses Apple's modern login item APIs through `SMAppService`. Depending on local macOS policy, the user may still need to approve Connection Manager in System Settings > Login Items.
 
+When startup launch is enabled and no startup protection mode is already selected, Connection Manager selects **Strict Startup Lock** and asks for administrator approval to install the startup PF anchor. The on-disk startup anchor blocks all non-loopback traffic by default so network traffic cannot pass before Connection Manager starts. After the app is running, it synchronizes the live PF startup anchor with the normal generated app rules while keeping the strict on-disk startup anchor ready for the next boot.
+
 Startup protection is separate from launch at login. It uses dedicated PF anchors:
 
 ```text
@@ -159,9 +161,9 @@ Startup modes:
 
 - **Monitor Only**: no startup PF rules.
 - **Protection at Boot**: keeps app-managed rules active and synchronizes after launch.
-- **Strict Startup Lock**: advanced mode that blocks most non-essential traffic until Connection Manager starts.
+- **Strict Startup Lock**: advanced mode that blocks all non-loopback traffic until Connection Manager starts and synchronizes PF.
 
-Strict Startup Lock is not enabled by default and requires an additional confirmation. It can affect network connectivity if misconfigured.
+Strict Startup Lock requires an additional confirmation. It can affect network connectivity if misconfigured.
 
 Recovery options:
 

@@ -987,7 +987,7 @@ public struct FirewallSettingsView: View {
                         get: { viewModel.settings.launchAtLogin },
                         set: { viewModel.setLaunchAtLogin($0) }
                     ))
-                    Text("Uses the macOS login item service. If the status requires approval, enable Connection Manager in System Settings > Login Items.")
+                    Text("Uses the macOS login item service. When enabled with no startup protection mode selected, Connection Manager prepares Strict Startup Lock so non-loopback traffic is blocked until the app starts and synchronizes PF. If the status requires approval, enable Connection Manager in System Settings > Login Items.")
                         .foregroundStyle(.secondary)
                     LabeledContent("Status", value: viewModel.loginItemStatus)
                     LabeledContent("Last startup", value: viewModel.settings.lastStartupAt.map(Self.dateFormatter.string(from:)) ?? "-")
@@ -1150,7 +1150,7 @@ public struct FirewallSettingsView: View {
                 acknowledgedStrictRisk = false
             }
         } message: {
-            Text("Strict Startup Lock can block most network traffic until Connection Manager starts. Recovery: reopen Settings and use Rollback Startup Protection, or remove /etc/pf.anchors/com.connectionmanager.startup with administrator privileges and reload that anchor.")
+            Text("Strict Startup Lock blocks all non-loopback traffic until Connection Manager starts and synchronizes PF. Recovery: reopen Settings and use Rollback Startup Protection, or remove /etc/pf.anchors/com.connectionmanager.startup with administrator privileges and reload that anchor.")
         }
         .alert("Block Known Google Connections?", isPresented: $viewModel.showGoogleBlockingConfirmation) {
             Button("Cancel", role: .cancel) {}

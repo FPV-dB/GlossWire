@@ -56,6 +56,14 @@ func capturedGoogleResolutionIsBlocked(hostname: String, address: String, expect
     #expect(StartupProtectionService.blocklistsAnchor.hasPrefix("com.apple/"))
 }
 
+@Test func strictStartupLockBlocksNetworkUntilRuntimeSynchronization() {
+    let rules = StartupProtectionService.startupRules(mode: .strictStartupLock, rulePreview: "")
+    #expect(rules.contains("pass quick on lo0 all"))
+    #expect(rules.contains("block drop quick all"))
+    #expect(!rules.contains("to port { 53 67 68 123 }"))
+    #expect(!rules.contains("from port { 53 67 68 123 }"))
+}
+
 @Test func legacySavedAnchorSettingsMigrateToConnectionManagerAnchor() throws {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("sqlite")
     defer { try? FileManager.default.removeItem(at: url) }

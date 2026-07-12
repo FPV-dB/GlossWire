@@ -70,6 +70,37 @@ func capturedGoogleResolutionIsBlocked(hostname: String, address: String, expect
     #expect(settings.blockedServiceIDs.contains(NetworkServiceBlockPreset.vnc.id))
 }
 
+@Test func internetKillSwitchAllowsLANBeforeBlockingPublicTraffic() {
+    var settings = FirewallSettings()
+    settings.internetKillSwitchEnabled = true
+    let rules = FirewallRuleGenerator().rules(for: [], allowlist: [], settings: settings)
+    let lan = try! #require(rules.range(of: "pass out quick inet to 192.168.0.0/16"))
+    let publicBlock = try! #require(rules.range(of: "block drop out quick all"))
+    #expect(lan.lowerBound < publicBlock.lowerBound)
+    #expect(rules.contains("pass quick on lo0 all"))
+    #expect(rules.contains("pass out quick inet6 to fc00::/7"))
+    #expect(rules.contains("pass out quick inet6 to ff00::/8"))
+    #expect(rules.contains("block drop in quick inet6 from any"))
+}
+
+@Test func emergencyPauseOverridesInternetKillSwitch() {
+    var settings = FirewallSettings()
+    settings.internetKillSwitchEnabled = true
+    settings.isBlockingPaused = true
+    let rules = FirewallRuleGenerator().rules(for: [], allowlist: [], settings: settings)
+    #expect(rules.contains("EMERGENCY PAUSE"))
+    #expect(!rules.contains("block drop out quick all"))
+}
+
+@Test func firewallSettingsPersistInternetKillSwitch() throws {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("sqlite")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let database = try FirewallDatabase(url: url)
+    var settings = FirewallSettings(); settings.internetKillSwitchEnabled = true
+    try database.save(settings: settings)
+    #expect(try database.settings().internetKillSwitchEnabled)
+}
+
 @Test func evaluatorLogsFailedAndSuccessfulRuleReasons() {
     let result = FirewallRuleEvaluator().evaluate(address: "142.250.124.119", blockRules: googleRules, allowlist: [])
     #expect(result.evaluations[0].matched == false)

@@ -41,6 +41,7 @@ public final class FirewallDashboardViewModel: ObservableObject {
     @Published public var torBlockingProgress: String?
     @Published public var showStopAllBlockingConfirmation = false
     @Published public var isChangingEmergencyBlockingState = false
+    @Published public var showInternetKillSwitchConfirmation = false
 
     public let liveConnectionsViewModel: LiveConnectionsViewModel
     private let database: FirewallDatabase
@@ -241,6 +242,26 @@ public final class FirewallDashboardViewModel: ObservableObject {
             try? database.insertEvent(type: "Emergency blocking resume failed", message: "Saved rules were not fully restored", detail: error.localizedDescription, succeeded: false)
             errorMessage = "Blocking remains paused: \(error.localizedDescription)"
             reload()
+        }
+        isChangingEmergencyBlockingState = false
+    }
+
+    public func setInternetKillSwitch(_ enabled: Bool) async {
+        showInternetKillSwitchConfirmation = false
+        isChangingEmergencyBlockingState = true
+        let previous = settings.internetKillSwitchEnabled
+        settings.internetKillSwitchEnabled = enabled
+        do {
+            try database.save(settings: settings)
+            rebuildPreview()
+            try await firewallService.apply(anchorText: rulePreview, settings: settings)
+            try database.insertEvent(type: enabled ? "Internet kill switch enabled" : "Internet kill switch disabled", message: enabled ? "Public-network traffic isolated" : "Normal routing restored", detail: "Loopback and LAN policy preserved", succeeded: true)
+            reload()
+        } catch {
+            settings.internetKillSwitchEnabled = previous
+            try? database.save(settings: settings)
+            rebuildPreview()
+            errorMessage = "Internet kill switch change failed: \(error.localizedDescription)"
         }
         isChangingEmergencyBlockingState = false
     }

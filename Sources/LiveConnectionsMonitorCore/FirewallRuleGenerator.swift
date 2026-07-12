@@ -19,6 +19,33 @@ public struct FirewallRuleGenerator: Sendable {
             "# Do not place unrelated rules in this file.",
             ""
         ]
+        if settings.internetKillSwitchEnabled {
+            lines.append(contentsOf: [
+                "# INTERNET KILL SWITCH: preserve loopback, LAN, multicast, and broadcast; isolate public networks.",
+                "pass quick on lo0 all",
+                "pass in quick inet from 10.0.0.0/8",
+                "pass out quick inet to 10.0.0.0/8",
+                "pass in quick inet from 172.16.0.0/12",
+                "pass out quick inet to 172.16.0.0/12",
+                "pass in quick inet from 192.168.0.0/16",
+                "pass out quick inet to 192.168.0.0/16",
+                "pass in quick inet from 169.254.0.0/16",
+                "pass out quick inet to 169.254.0.0/16",
+                "pass in quick inet from 224.0.0.0/4",
+                "pass out quick inet to 224.0.0.0/4",
+                "pass out quick inet to 255.255.255.255",
+                "pass in quick inet6 from fc00::/7",
+                "pass out quick inet6 to fc00::/7",
+                "pass in quick inet6 from fe80::/10",
+                "pass out quick inet6 to fe80::/10",
+                "pass in quick inet6 from ff00::/8",
+                "pass out quick inet6 to ff00::/8",
+                "block drop out quick all",
+                "block drop in quick inet from any",
+                "block drop in quick inet6 from any",
+                ""
+            ])
+        }
         let blockedServices = NetworkServiceBlockPreset.allCases.filter { settings.blockedServiceIDs.contains($0.id) }
         if !blockedServices.isEmpty {
             lines.append("# Blocked Network Services")

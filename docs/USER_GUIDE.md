@@ -93,6 +93,10 @@ In **Settings → Logging and History**, enable **Disable all logs** to immediat
 
 **Internet Weather** measures three ICMP round trips to `1.1.1.1`, DNS response time for `example.com`, IPv4 and IPv6 default-route availability, and the current IPv4 gateway. Samples are stored locally to build evidence for ISP-quality history; **Disable all logs** prevents new history writes. Failed ICMP or DNS probes can indicate filtering rather than a total outage. GlossWire does not contact a public-IP or ISP-identification API in this mode.
 
+## LAN-Preserving Internet Kill Switch
+
+In **Settings → Firewall**, choose **Isolate from Internet** and confirm the administrator prompt. GlossWire installs ordered `quick` PF rules that permit loopback, RFC 1918 and link-local IPv4, IPv6 ULA and link-local ranges, multicast, and broadcast before blocking remaining inbound and outbound public traffic. This is designed to leave routers, NAS devices, printers, and local discovery reachable. Use **Restore Internet** to remove isolation. If recovery is needed, **Stop All Blocking** overrides the kill switch and empties GlossWire's managed anchors without deleting its saved configuration. Existing stateful connections may take a short time to expire after isolation.
+
 ### Nmap for a Selected IP
 
 Select a connection and use the Nmap menu in the toolbar or inspector for a Quick Port, Service/Version, or OS Detection scan. The row context menu offers the same actions. Results open in the existing Nmap workbench, where they can be stopped, reviewed, compared with history, or exported. The full workbench is prefilled with the selected remote IP. Nmap scanning is restricted to local/private targets by the app's existing target safety check.

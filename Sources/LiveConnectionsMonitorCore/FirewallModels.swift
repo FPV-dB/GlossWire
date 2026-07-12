@@ -177,6 +177,7 @@ public struct FirewallSettings: Hashable, Sendable {
     public var blockReputationMatchedConnections = false
     public var blockedServiceIDs: Set<String> = []
     public var isBlockingPaused = false
+    public var internetKillSwitchEnabled = false
 }
 
 public enum NetworkServiceBlockPreset: String, CaseIterable, Identifiable, Sendable {

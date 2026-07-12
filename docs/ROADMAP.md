@@ -18,6 +18,7 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - Persistent Timeline bookmarks and two-day retained-metadata comparisons.
 - Local Explain My Computer narrative, transparent Internet-behavior ratings, entropy/noise metrics, daily fingerprint similarity, and Quiet Mode.
 - Local Internet Weather measurements and persistent ISP-quality history for latency, packet loss, DNS response, routes, and gateway state.
+- Persisted, administrator-confirmed Internet Kill Switch with LAN, loopback, multicast, and broadcast preservation plus emergency-pause recovery.
 - Throughput graphs and per-IP throughput history.
 - DNSBL, ASN, RDAP, reverse DNS, Tor checks, and 0–100 IP safety scoring.
 - Explicit local/private selected-target Nmap scans with history, comparison, favourites, and export.

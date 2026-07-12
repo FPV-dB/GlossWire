@@ -120,6 +120,12 @@ public struct FirewallDashboardView: View {
         } message: {
             Text("This temporarily clears GlossWire's active app and startup PF anchors. Your configured rules, lists, toggles, and startup mode are preserved so they can be restored with Resume Blocking. macOS administrator approval is required.")
         }
+        .alert("Enable LAN-Preserving Internet Kill Switch?", isPresented: $viewModel.showInternetKillSwitchConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Isolate Internet", role: .destructive) { Task { await viewModel.setInternetKillSwitch(true) } }
+        } message: {
+            Text("GlossWire will block public IPv4 and IPv6 traffic while allowing loopback, private/link-local LAN ranges, multicast, and broadcast. Existing stateful connections may take a moment to expire. Administrator approval is required.")
+        }
         .sheet(isPresented: $viewModel.showLookupPrivacyWarning) {
             VStack(alignment: .leading, spacing: 14) {
                 Label("Third-party lookup", systemImage: "globe")
@@ -1281,6 +1287,19 @@ public struct FirewallSettingsView: View {
                 }
 
                 Section("Firewall") {
+                    HStack {
+                        Label(viewModel.settings.internetKillSwitchEnabled ? "Internet isolated — LAN preserved" : "Internet Kill Switch off", systemImage: viewModel.settings.internetKillSwitchEnabled ? "network.slash" : "network")
+                            .foregroundStyle(viewModel.settings.internetKillSwitchEnabled ? .red : .secondary)
+                        Spacer()
+                        if viewModel.settings.internetKillSwitchEnabled {
+                            Button("Restore Internet") { Task { await viewModel.setInternetKillSwitch(false) } }.buttonStyle(.borderedProminent)
+                        } else {
+                            Button("Isolate from Internet", role: .destructive) { viewModel.showInternetKillSwitchConfirmation = true }
+                        }
+                    }
+                    Text("Allows loopback, RFC 1918 IPv4, link-local, IPv6 ULA/link-local, multicast, and broadcast traffic so routers, NAS devices, printers, and local discovery can remain reachable.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Divider()
                     if viewModel.settings.isBlockingPaused {
                         Label("All GlossWire blocking is temporarily stopped", systemImage: "exclamationmark.shield.fill")
                             .foregroundStyle(.orange)

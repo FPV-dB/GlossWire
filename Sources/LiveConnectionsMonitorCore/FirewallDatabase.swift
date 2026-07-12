@@ -131,6 +131,7 @@ public final class FirewallDatabase: @unchecked Sendable {
                 case "blockReputationMatchedConnections": settings.blockReputationMatchedConnections = value == "1"
                 case "blockedServiceIDs": settings.blockedServiceIDs = Set(value.split(separator: ",").map(String.init))
                 case "isBlockingPaused": settings.isBlockingPaused = value == "1"
+                case "internetKillSwitchEnabled": settings.internetKillSwitchEnabled = value == "1"
                 default: break
                 }
             }
@@ -166,7 +167,8 @@ public final class FirewallDatabase: @unchecked Sendable {
                 ("torRangesLastUpdatedAt", settings.torRangesLastUpdatedAt.map { String($0.timeIntervalSince1970) } ?? ""),
                 ("blockReputationMatchedConnections", settings.blockReputationMatchedConnections ? "1" : "0"),
                 ("blockedServiceIDs", settings.blockedServiceIDs.sorted().joined(separator: ",")),
-                ("isBlockingPaused", settings.isBlockingPaused ? "1" : "0")
+                ("isBlockingPaused", settings.isBlockingPaused ? "1" : "0"),
+                ("internetKillSwitchEnabled", settings.internetKillSwitchEnabled ? "1" : "0")
             ] {
                 try execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", [.text(key), .text(value)])
             }

@@ -30,11 +30,11 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - Application icons and signing Team ID where macOS exposes them.
 - Plain-English **Why is this connected?** inference from visible metadata.
 - Blocklists, country/provider controls, service blocking, and emergency pause/recovery.
+- Durable Network Memory tags, notes, trusted-context markers, favourites, and watchlists.
 
 ## Phase 2 — Investigation Metadata
 
 - IP first-seen, last-seen, and times-seen aggregation.
-- User tags, notes, trusted favourites, and watchlists.
 - Automatic reverse-DNS enrichment in retained history with caching and expiry.
 - Compact WHOIS/RDAP ownership summaries.
 - ASN browser that filters current and historical connections.

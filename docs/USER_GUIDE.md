@@ -81,6 +81,8 @@ The **Intelligence** page turns retained connection observations into local summ
 
 Search and Privacy Mode apply to the intelligence views. These summaries describe connection metadata GlossWire has actually retained; they do not inspect payloads, infer packet counts, or claim traffic-byte totals when those measurements are unavailable. Domain-family grouping is a display heuristic and is not a public-suffix classification service.
 
+Network Memory entries can be favourited, marked as trusted context, added to a watchlist, tagged, and given investigation notes. Watched and favourite entries sort first and annotations are included in search. A Trusted marker is descriptive only: it does not add an allow rule, suppress evidence, or change firewall enforcement.
+
 Periodic signals are behavioral hints, not malware verdicts. Per-flow upload attribution, definitive DNS-leak verdicts, and inbound port-scan detection remain visibly capability-gated until GlossWire has the flow-byte, resolver-attribution, or inbound-attempt telemetry needed to support them accurately.
 
 Process-level **Upload spike** signals use GlossWire's measured upload-rate samples after at least five samples and a 1 MB/s minimum; they do not claim which individual flow carried the bytes. Per-flow attribution remains capability-gated. The Overview activity forecast projects retained connection-observation volume for the day and month and displays its history-based confidence; it is not a bandwidth forecast when byte counters are unavailable.

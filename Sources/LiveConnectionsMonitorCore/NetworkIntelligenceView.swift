@@ -10,6 +10,7 @@ public struct NetworkIntelligenceView: View {
     @StateObject private var timeCapsule = NetworkTimeCapsuleViewModel()
     @StateObject private var executableMonitor = ExecutableIdentityViewModel()
     @StateObject private var systemContext = SystemContextViewModel()
+    @StateObject private var annotations = NetworkContextAnnotationStore()
 
     public init(viewModel: ApplicationNetworkViewModel) { self.viewModel = viewModel }
 
@@ -100,9 +101,10 @@ public struct NetworkIntelligenceView: View {
     }
 
     private func memory(_ analyzer: NetworkIntelligenceAnalyzer) -> some View {
-        let rows = analyzer.networkMemory(records: viewModel.timelineHistory).filter { matches($0.id) || $0.processes.contains(where: matches) }
+        let rows = analyzer.networkMemory(records: viewModel.timelineHistory).filter { item in let annotation = annotations.annotation(for: item.id); return matches(item.id) || item.processes.contains(where: matches) || annotation.tags.contains(where: matches) || matches(annotation.note) }.sorted { left, right in let a = annotations.annotation(for: left.id), b = annotations.annotation(for: right.id); if a.isWatched != b.isWatched { return a.isWatched }; if a.isFavourite != b.isFavourite { return a.isFavourite }; return left.lastSeen > right.lastSeen }
         return List(rows) { item in
-            HStack {
+            let annotation = annotations.annotation(for: item.id)
+            VStack(alignment: .leading, spacing: 7) { HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(PrivacyRedactor.address(item.id, enabled: viewModel.privacyModeEnabled)).font(.headline.monospaced())
                     Text("First contacted \(item.firstSeen.formatted(date: .abbreviated, time: .shortened)) · Last \(item.lastSeen.formatted(date: .abbreviated, time: .shortened))")
@@ -111,6 +113,13 @@ public struct NetworkIntelligenceView: View {
                 }.font(.caption)
                 Spacer()
                 Text(item.totalBytes.map { ByteCountFormatter.string(fromByteCount: Int64(clamping: $0), countStyle: .binary) } ?? "Bytes unavailable").font(.caption.monospacedDigit())
+                Button { annotations.setFavourite(!annotation.isFavourite, for: item.id) } label: { Image(systemName: annotation.isFavourite ? "star.fill" : "star") }.buttonStyle(.borderless).help("Favourite")
+                Button { annotations.setTrusted(!annotation.isTrusted, for: item.id) } label: { Image(systemName: annotation.isTrusted ? "checkmark.shield.fill" : "checkmark.shield") }.buttonStyle(.borderless).help("Trusted context")
+                Button { annotations.setWatched(!annotation.isWatched, for: item.id) } label: { Image(systemName: annotation.isWatched ? "eye.fill" : "eye") }.buttonStyle(.borderless).help("Watchlist")
+            }
+                if !annotation.tags.isEmpty { Text(annotation.tags.map { "#\($0)" }.joined(separator: "  ")).font(.caption).foregroundStyle(.cyan) }
+                HStack { TextField("Comma-separated tags", text: Binding(get: { annotations.annotation(for: item.id).tags.joined(separator: ", ") }, set: { annotations.setTags($0, for: item.id) })); TextField("Investigation note", text: Binding(get: { annotations.annotation(for: item.id).note }, set: { annotations.setNote($0, for: item.id) })) }.textFieldStyle(.roundedBorder).font(.caption)
+                Text("Trusted is context only and does not create a firewall allow rule or suppress evidence.").font(.caption2).foregroundStyle(.secondary)
             }.padding(.vertical, 5)
         }
     }

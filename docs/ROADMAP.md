@@ -33,6 +33,7 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - Durable Network Memory tags, notes, trusted-context markers, favourites, and watchlists.
 - Unified informational Alert Centre with severity/status filtering, deduplication, occurrence counts, acknowledgement, resolution, and 24-hour process muting.
 - Expiry-aware endpoint enrichment cache combining reverse DNS, ASN, RDAP, reputation score, and direct user-triggered non-intercepting TLS certificate inspection.
+- Dedicated investigation workflow with watchlist activity, once-daily local reports, configurable 1–365 day connection retention, WAL checkpointing, and SQLite compaction.
 
 ## Phase 2 — Investigation Metadata
 
@@ -48,7 +49,7 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - New executable, destination, country, port, protocol, and IPv6-use alerts.
 - Executable signing and hash-change alerts.
 - Per-process connection-count and bandwidth baselines.
-- Daily and weekly local reports.
+- Weekly local reports; daily reports are implemented.
 
 Alerts remain informational by default and must work without GeoIP availability.
 

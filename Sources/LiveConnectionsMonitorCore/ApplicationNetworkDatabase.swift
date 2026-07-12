@@ -156,6 +156,16 @@ public final class ApplicationNetworkDatabase: @unchecked Sendable {
         try queue.sync { try execute("DELETE FROM app_connection_history WHERE app_id = ?", [appID]) }
     }
 
+    public func historyCount() throws -> Int {
+        try queue.sync { let statement = try prepare("SELECT COUNT(*) FROM app_connection_history"); defer { sqlite3_finalize(statement) }; guard sqlite3_step(statement) == SQLITE_ROW else { return 0 }; return Int(sqlite3_column_int64(statement, 0)) }
+    }
+
+    @discardableResult public func pruneHistory(olderThan cutoff: Date) throws -> Int {
+        try queue.sync { let before = sqlite3_total_changes(db); try execute("DELETE FROM app_connection_history WHERE timestamp < ?", [cutoff.timeIntervalSince1970]); return Int(sqlite3_total_changes(db) - before) }
+    }
+
+    public func compact() throws { try queue.sync { try execute("PRAGMA wal_checkpoint(TRUNCATE)"); try execute("VACUUM") } }
+
     private func migrate() throws {
         try execute("PRAGMA journal_mode = WAL")
         try execute("""

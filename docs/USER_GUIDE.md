@@ -117,6 +117,12 @@ The **Enrichment** page combines cached reverse DNS, Team Cymru ASN, RDAP owners
 
 The TLS Certificate Viewer performs a direct, user-triggered TLS handshake to a hostname and port and displays the peer certificate subject, issuer, validity dates, SHA-256 fingerprint, negotiated protocol, and cipher where OpenSSL exposes them. It does not install a certificate authority, intercept another application's traffic, decrypt payloads, or retain packet contents.
 
+## Investigation Workflow And Retention
+
+The **Investigations** page provides a dedicated watchlist, daily local reports, and connection-history retention controls. Watched address/context keys show their current loaded observation count and reuse Network Memory notes. Reports are generated at most once per day while GlossWire runs and summarise processes, destinations, countries, blocked outcomes, new processes, and the local Network Journal.
+
+**Prune and Compact** permanently removes connection observations older than the selected 1–365 day retention period, checkpoints the SQLite write-ahead log, and vacuums the database. Application rules, firewall configuration, watchlists, annotations, and reports are not deleted. Disable all logs prevents new report persistence.
+
 ## LAN-Preserving Internet Kill Switch
 
 In **Settings → Firewall**, choose **Isolate from Internet** and confirm the administrator prompt. GlossWire installs ordered `quick` PF rules that permit loopback, RFC 1918 and link-local IPv4, IPv6 ULA and link-local ranges, multicast, and broadcast before blocking remaining inbound and outbound public traffic. This is designed to leave routers, NAS devices, printers, and local discovery reachable. Use **Restore Internet** to remove isolation. If recovery is needed, **Stop All Blocking** overrides the kill switch and empties GlossWire's managed anchors without deleting its saved configuration. Existing stateful connections may take a short time to expire after isolation.

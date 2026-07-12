@@ -243,6 +243,13 @@ public final class ApplicationNetworkViewModel: ObservableObject {
         }
     }
 
+    public func pruneHistory(retainingDays days: Int) async -> Int? {
+        do { let database = database; let cutoff = Calendar.current.date(byAdding: .day, value: -max(1, days), to: Date()) ?? Date(); let removed = try await Task.detached { let value = try database.pruneHistory(olderThan: cutoff); try database.compact(); return value }.value; await reloadTimeline(); return removed }
+        catch { errorMessage = error.localizedDescription; return nil }
+    }
+
+    public func retainedHistoryCount() async -> Int { let database = database; return (try? await Task.detached { try database.historyCount() }.value) ?? 0 }
+
     public func exportSelectedHistory() {
         guard let app = selectedApp else { return }
         let panel = NSSavePanel()

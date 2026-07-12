@@ -1,3 +1,4 @@
+import AppKit
 import Charts
 import SwiftUI
 
@@ -21,6 +22,7 @@ public struct NetworkIntelligenceView: View {
                     Spacer()
                     Toggle("Privacy Mode", isOn: $viewModel.privacyModeEnabled).toggleStyle(.switch)
                     Toggle("Quiet Mode", isOn: $quietMode).toggleStyle(.switch)
+                    Button { exportInvestigationPackage() } label: { Label("Export Package", systemImage: "archivebox") }
                     TextField("Search", text: $searchText).textFieldStyle(.roundedBorder).frame(width: 240)
                 }
                 Picker("Section", selection: $section) {
@@ -165,6 +167,17 @@ public struct NetworkIntelligenceView: View {
 
     private func matches(_ value: String) -> Bool { searchText.isEmpty || value.localizedCaseInsensitiveContains(searchText) }
     private func maskProcess(_ value: String) -> String { PrivacyRedactor.process(value, enabled: viewModel.privacyModeEnabled) }
+    private func exportInvestigationPackage() {
+        let panel = NSSavePanel(); panel.allowedContentTypes = [.zip]; panel.nameFieldStringValue = "GlossWire-investigation-\(Date().formatted(.iso8601.year().month().day())).zip"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let records = viewModel.timelineHistory, privacy = viewModel.privacyModeEnabled
+        Task {
+            let weather = await InternetWeatherStore().load()
+            let bookmarks = TimelineBookmarkStore().bookmarks
+            do { try await InvestigationPackageExporter().export(to: url, records: records, weather: weather, bookmarks: bookmarks, privacyMode: privacy) }
+            catch { viewModel.errorMessage = "Could not export investigation package: \(error.localizedDescription)" }
+        }
+    }
 }
 
 private enum IntelligenceSection: String, CaseIterable, Identifiable { case overview = "Overview", journal = "Journal", passports = "Passports", memory = "Network Memory", ports = "Ports", domains = "Domains", calendar = "Calendar", signals = "Signals"; var id: String { rawValue } }

@@ -85,6 +85,8 @@ Periodic signals are behavioral hints, not malware verdicts. Upload-spike, wake/
 
 Internet ratings measure consistency and observable behavior; they are not reputation verdicts or security certificates. **Explain My Computer** is generated locally from the most recent minute of retained endpoint metadata and does not send data to an AI service. Quiet Mode hides routine rating cards and shows a quiet state when no supported behavior signals are present.
 
+Choose **Export Package** on the Intelligence page to create a ZIP containing a readable summary, Network Journal, connection CSV and JSON, Internet Weather history, Timeline bookmarks, and a capability manifest. Privacy Mode redacts supported connection identifiers in the CSV and JSON export. The manifest records evidence limitations so the package is not mistaken for packet capture or proof that an absent event never occurred.
+
 ## Disable All Logs
 
 In **Settings → Logging and History**, enable **Disable all logs** to immediately stop new firewall event-log rows, application connection-history records, and Nmap scan-history entries. Live monitoring and firewall enforcement continue. Existing records are preserved for review or manual clearing; the toggle does not erase evidence.

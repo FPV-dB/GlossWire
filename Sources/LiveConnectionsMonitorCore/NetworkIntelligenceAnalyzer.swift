@@ -27,6 +27,7 @@ public struct AddressMemory: Identifiable, Sendable, Hashable {
 
 public struct PortUsage: Identifiable, Sendable, Hashable { public let id: String; public let count: Int; public let service: String }
 public struct DomainFamilyUsage: Identifiable, Sendable, Hashable { public let id: String; public let count: Int; public let hosts: Int }
+public struct ObservedHostnameUsage: Identifiable, Sendable, Hashable { public let id: String; public let count: Int; public let processes: [String]; public let lastSeen: Date }
 public struct DailyNetworkActivity: Identifiable, Sendable, Hashable { public var id: Date { day }; public let day: Date; public let observations: Int; public let processes: Int; public let destinations: Int; public let totalBytes: UInt64? }
 public enum BehaviourSignalKind: String, Sendable, Hashable { case beacon = "Periodic beacon", ipv6 = "IPv6 activity", uploadSpike = "Upload spike" }
 public struct BehaviourSignal: Identifiable, Sendable, Hashable {
@@ -93,6 +94,10 @@ public struct NetworkIntelligenceAnalyzer: Sendable {
         }.sorted { $0.count > $1.count }
     }
 
+    public func observedHostnames(records: [AppConnectionRecord]) -> [ObservedHostnameUsage] {
+        Dictionary(grouping: records.filter { !($0.remoteHostname ?? "").isEmpty }, by: { $0.remoteHostname!.lowercased() }).map { hostname, values in ObservedHostnameUsage(id: hostname, count: values.count, processes: ranked(values.map(\.appBundleIdentifier), limit: 5), lastSeen: values.map(\.timestamp).max() ?? .distantPast) }.sorted { $0.lastSeen > $1.lastSeen }
+    }
+
     public func calendarActivity(records: [AppConnectionRecord]) -> [DailyNetworkActivity] {
         Dictionary(grouping: records, by: { calendar.startOfDay(for: $0.timestamp) }).map { day, values in
             DailyNetworkActivity(day: day, observations: values.count, processes: Set(values.map(\.appBundleIdentifier)).count,
@@ -133,8 +138,9 @@ public struct NetworkIntelligenceAnalyzer: Sendable {
             DetectionCapability(id: "Process upload spike detection", available: true, detail: "Uses measured process upload-rate samples and requires at least five samples plus a 1 MB/s floor."),
             DetectionCapability(id: "Per-flow upload attribution", available: provider.suppliesPerFlowBytes, detail: provider.suppliesPerFlowBytes ? "Available from measured per-flow byte counters." : "Needs a future provider with measured per-flow byte counters."),
             DetectionCapability(id: "Wake and idle attribution", available: true, detail: "Uses macOS wake notifications, session idle time, power assertions, and retained observations while GlossWire runs."),
-            DetectionCapability(id: "VPN awareness", available: true, detail: "Uses active utun interfaces and the IPv4 default route; split tunnels remain explicitly ambiguous."),
+            DetectionCapability(id: "VPN awareness", available: true, detail: "Uses connected macOS Network Configuration services, tunnel interfaces, and the IPv4 default route; split tunnels remain explicitly ambiguous."),
             DetectionCapability(id: "DNS leak assessment", available: false, detail: "Resolver-to-interface attribution is incomplete on some macOS configurations; the UI reports indeterminate rather than a verdict."),
+            DetectionCapability(id: "DNS query history", available: provider.resolvesHostnames, detail: provider.resolvesHostnames ? "Available from provider-attributed hostname events." : "Observed hostnames are shown separately; query, cache, TTL, and requesting-process history need a DNS event provider."),
             DetectionCapability(id: "Executable change detection", available: true, detail: "Hashes readable running-app executables and compares durable signer/team identity snapshots."),
             DetectionCapability(id: "Inbound port-scan detection", available: false, detail: "Needs inbound attempt telemetry; established-socket polling cannot prove scans.")
         ]

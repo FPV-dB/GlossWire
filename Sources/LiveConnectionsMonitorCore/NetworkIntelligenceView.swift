@@ -126,8 +126,13 @@ public struct NetworkIntelligenceView: View {
 
     private func domains(_ analyzer: NetworkIntelligenceAnalyzer) -> some View {
         let rows = analyzer.domainFamilies(records: viewModel.timelineHistory).filter { matches($0.id) }
-        return List(rows) { item in
-            HStack { Text(viewModel.privacyModeEnabled ? "hidden.example" : item.id).font(.headline.monospaced()); Spacer(); Text("\(item.count) observations · \(item.hosts) hosts").font(.caption.monospacedDigit()) }
+        let hosts = analyzer.observedHostnames(records: viewModel.timelineHistory).filter { matches($0.id) || $0.processes.contains(where: matches) }
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Observed Hostnames").font(.headline)
+            Text("Names attached to retained connection observations; not a DNS query or cache log.").font(.caption).foregroundStyle(.secondary)
+            List(hosts.prefix(200)) { item in HStack { VStack(alignment: .leading) { Text(viewModel.privacyModeEnabled ? "hidden.example" : item.id).font(.subheadline.monospaced()); Text(item.processes.map(maskProcess).joined(separator: ", ")).font(.caption).foregroundStyle(.secondary) }; Spacer(); Text("\(item.count) · \(item.lastSeen.formatted(date: .abbreviated, time: .shortened))").font(.caption.monospacedDigit()) } }.frame(minHeight: 180)
+            Text("Domain Families").font(.headline)
+            List(rows) { item in HStack { Text(viewModel.privacyModeEnabled ? "hidden.example" : item.id).font(.headline.monospaced()); Spacer(); Text("\(item.count) observations · \(item.hosts) hosts").font(.caption.monospacedDigit()) } }.frame(minHeight: 180)
         }
     }
 
@@ -228,4 +233,4 @@ public struct NetworkIntelligenceView: View {
     }
 }
 
-private enum IntelligenceSection: String, CaseIterable, Identifiable { case overview = "Overview", journal = "Journal", passports = "Passports", memory = "Network Memory", ports = "Ports", domains = "Domains", services = "Services", calendar = "Calendar", signals = "Signals", timeCapsule = "Time Capsule"; var id: String { rawValue } }
+private enum IntelligenceSection: String, CaseIterable, Identifiable { case overview = "Overview", journal = "Journal", passports = "Passports", memory = "Network Memory", ports = "Ports", domains = "DNS & Domains", services = "Services", calendar = "Calendar", signals = "Signals", timeCapsule = "Time Capsule"; var id: String { rawValue } }

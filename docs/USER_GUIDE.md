@@ -11,7 +11,7 @@ GlossWire is a defensive macOS utility for network visibility and deliberate PF 
 
 Closing the main window hides it. The app continues running from the menu bar. When macOS launches GlossWire as a login item, the main window stays hidden automatically; choose **Show Connections** from the menu bar popover whenever you want to open it. Launching the app yourself from Finder or Applications still opens the window normally.
 
-The menu-bar popover doubles as a mini dashboard. Alongside current and peak throughput it shows active connections, connections first seen in the last minute, recent blocking/failure events, GlossWire's memory footprint, and system load. Internet latency remains labelled **Not sampled** until the optional Internet Weather sampler is enabled in a later milestone; opening the menu does not generate network probes.
+The menu-bar popover doubles as a mini dashboard. Alongside current and peak throughput it shows active connections, connections first seen in the last minute, recent blocking/failure events, GlossWire's memory footprint, and system load. Internet Weather measurements are performed only from the dedicated page; opening the menu does not generate network probes.
 
 ## Desktop Throughput Bar
 
@@ -75,7 +75,7 @@ The **Intelligence** page turns retained connection observations into local summ
 - **Passports:** first/last seen dates, usual destinations, countries, ports, and observation counts for each process.
 - **Network Memory:** accumulated context for each destination, including which processes used it and how often it was observed.
 - **Ports:** a ranked chart of observed destination-port usage.
-- **Domains:** related hostnames collapsed into domain-family summaries.
+- **DNS & Domains:** observed hostnames plus related names collapsed into domain-family summaries. These are names attached to connection observations, not DNS query/cache events.
 - **Calendar:** a day-by-day activity heatmap based on retained observations.
 - **Signals:** periodic same-endpoint patterns and IPv6 use derived from retained observations, plus an explicit coverage list for detectors that require richer providers.
 

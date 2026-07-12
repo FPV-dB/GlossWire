@@ -21,6 +21,7 @@ private func intelRecord(_ id: String, day: TimeInterval, app: String, remote: S
     let coverage = analyzer.detectionCapabilities(provider: .processCounters)
     #expect(coverage.first { $0.id == "Process upload spike detection" }?.available == true)
     #expect(coverage.first { $0.id == "Per-flow upload attribution" }?.available == false)
+    #expect(coverage.first { $0.id == "DNS query history" }?.available == false)
     #expect(coverage.first { $0.id == "Inbound port-scan detection" }?.available == false)
 }
 
@@ -76,6 +77,8 @@ private func intelRecord(_ id: String, day: TimeInterval, app: String, remote: S
     let analyzer = NetworkIntelligenceAnalyzer()
     #expect(analyzer.ports(records: [record]).first?.service.contains("HTTPS") == true)
     #expect(analyzer.domainFamilies(records: [record]).first?.id == "example.com")
+    #expect(analyzer.observedHostnames(records: [record]).first?.id == "api.example.com")
+    #expect(analyzer.observedHostnames(records: [record]).first?.processes == ["Safari"])
     #expect(analyzer.calendarActivity(records: [record]).first?.observations == 1)
     let journal = analyzer.journal(records: [record], day: now)
     #expect(journal.contains("Safari"))

@@ -22,6 +22,7 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - Auditable ZIP investigation packages with journal, CSV/JSON observations, weather history, bookmarks, privacy redaction, and an evidence-capability manifest.
 - Daily and manual Network Time Capsule snapshots covering apps, observed endpoints/LAN devices, Wi-Fi, gateway, routes, quality history, and explicit unavailable-evidence markers.
 - Provider-backed executable SHA-256 and signing-team baselines with same-signer update, signer-change, and unsigned/unavailable-signer classification.
+- System-context provider for utun VPN/default-route awareness, split-tunnel warnings, session idle time, wake-window activity, and sleep-prevention assertions; DNS leak verdict remains capability-gated when attribution is incomplete.
 - Throughput graphs and per-IP throughput history.
 - DNSBL, ASN, RDAP, reverse DNS, Tor checks, and 0–100 IP safety scoring.
 - Explicit local/private selected-target Nmap scans with history, comparison, favourites, and export.

@@ -9,6 +9,7 @@ public struct NetworkIntelligenceView: View {
     @State private var quietMode = false
     @StateObject private var timeCapsule = NetworkTimeCapsuleViewModel()
     @StateObject private var executableMonitor = ExecutableIdentityViewModel()
+    @StateObject private var systemContext = SystemContextViewModel()
 
     public init(viewModel: ApplicationNetworkViewModel) { self.viewModel = viewModel }
 
@@ -155,6 +156,21 @@ public struct NetworkIntelligenceView: View {
                 }
                 GlassCard {
                     VStack(alignment: .leading, spacing: 8) {
+                        HStack { Label("System Context", systemImage: "laptopcomputer.and.arrow.down").font(.headline); Spacer(); Button("Refresh") { Task { await systemContext.refresh() } }.disabled(systemContext.refreshing) }
+                        if let context = systemContext.context {
+                            Text(context.connectedVPNServices.isEmpty ? "VPN: no connected Network Configuration service" : "VPN: \(context.connectedVPNServices.joined(separator: ", ")) · Default route: \(context.defaultInterface ?? "Unavailable")").font(.subheadline)
+                            Text("Observed tunnel interfaces: \(context.tunnelInterfaces.isEmpty ? "None" : context.tunnelInterfaces.joined(separator: ", "))").font(.caption).foregroundStyle(.secondary)
+                            if context.possibleVPNBypass { Label("Default route does not use an observed VPN interface. This may be intentional split tunnelling or a bypass.", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
+                            Text(context.dnsAssessment).font(.caption).foregroundStyle(.secondary)
+                            Text("Mac idle for \(Duration.seconds(context.idleSeconds).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated))).").font(.caption)
+                            if context.sleepPreventers.isEmpty { Text("No parsed sleep-prevention assertions.").font(.caption).foregroundStyle(.secondary) } else { ForEach(context.sleepPreventers, id: \.self) { Text("• \($0)").font(.caption.monospaced()) } }
+                        }
+                        if let wake = systemContext.lastWakeAt { let count = viewModel.timelineHistory.filter { $0.timestamp >= wake }.count; Text("Wake Activity: \(count) retained connection observations since \(wake.formatted(date: .omitted, time: .standard)).").font(.caption) }
+                        else { Text("Wake Activity begins when GlossWire observes the next macOS wake notification while running.").font(.caption).foregroundStyle(.secondary) }
+                    }
+                }
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 8) {
                         HStack { Label("Executable Change Detector", systemImage: "checkmark.seal.text.page").font(.headline); Spacer(); Button("Scan Running Apps") { Task { await executableMonitor.scan(apps: viewModel.applications) } }.disabled(executableMonitor.scanning) }
                         if let message = executableMonitor.message { Text(message).font(.caption).foregroundStyle(.secondary) }
                         if executableMonitor.changes.isEmpty { Text("No executable hash changes were detected against the saved baseline.").foregroundStyle(.secondary) }
@@ -174,7 +190,7 @@ public struct NetworkIntelligenceView: View {
                 }
             }
         }
-        .task { if executableMonitor.identities.isEmpty { await executableMonitor.scan(apps: viewModel.applications) } }
+        .task { if executableMonitor.identities.isEmpty { await executableMonitor.scan(apps: viewModel.applications) }; if systemContext.context == nil { await systemContext.refresh() } }
     }
 
     private var timeCapsuleView: some View {

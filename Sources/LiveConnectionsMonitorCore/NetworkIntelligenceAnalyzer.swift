@@ -128,8 +128,9 @@ public struct NetworkIntelligenceAnalyzer: Sendable {
             DetectionCapability(id: "Periodic beacon detection", available: true, detail: "Uses repeated endpoint timestamps; it is a pattern hint, not a malware verdict."),
             DetectionCapability(id: "IPv6 activity", available: true, detail: "Uses retained remote-address metadata."),
             DetectionCapability(id: "Upload spike detection", available: provider.suppliesPerFlowBytes, detail: provider.suppliesPerFlowBytes ? "Available from measured per-flow byte counters." : "Needs a future provider with measured per-flow byte counters."),
-            DetectionCapability(id: "Wake and idle attribution", available: false, detail: "Needs durable power-state events correlated with connection observations."),
-            DetectionCapability(id: "VPN and DNS leak detection", available: false, detail: "Needs route, interface, and DNS resolver attribution from a future system provider."),
+            DetectionCapability(id: "Wake and idle attribution", available: true, detail: "Uses macOS wake notifications, session idle time, power assertions, and retained observations while GlossWire runs."),
+            DetectionCapability(id: "VPN awareness", available: true, detail: "Uses active utun interfaces and the IPv4 default route; split tunnels remain explicitly ambiguous."),
+            DetectionCapability(id: "DNS leak assessment", available: false, detail: "Resolver-to-interface attribution is incomplete on some macOS configurations; the UI reports indeterminate rather than a verdict."),
             DetectionCapability(id: "Executable change detection", available: true, detail: "Hashes readable running-app executables and compares durable signer/team identity snapshots."),
             DetectionCapability(id: "Inbound port-scan detection", available: false, detail: "Needs inbound attempt telemetry; established-socket polling cannot prove scans.")
         ]

@@ -8,6 +8,7 @@ public struct NetworkIntelligenceView: View {
     @State private var searchText = ""
     @State private var quietMode = false
     @StateObject private var timeCapsule = NetworkTimeCapsuleViewModel()
+    @StateObject private var executableMonitor = ExecutableIdentityViewModel()
 
     public init(viewModel: ApplicationNetworkViewModel) { self.viewModel = viewModel }
 
@@ -153,6 +154,14 @@ public struct NetworkIntelligenceView: View {
                     }
                 }
                 GlassCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack { Label("Executable Change Detector", systemImage: "checkmark.seal.text.page").font(.headline); Spacer(); Button("Scan Running Apps") { Task { await executableMonitor.scan(apps: viewModel.applications) } }.disabled(executableMonitor.scanning) }
+                        if let message = executableMonitor.message { Text(message).font(.caption).foregroundStyle(.secondary) }
+                        if executableMonitor.changes.isEmpty { Text("No executable hash changes were detected against the saved baseline.").foregroundStyle(.secondary) }
+                        ForEach(executableMonitor.changes) { change in VStack(alignment: .leading, spacing: 3) { Text("\(change.appName) — \(change.severity)").font(.subheadline.weight(.semibold)); Text(PrivacyRedactor.path(change.path, enabled: viewModel.privacyModeEnabled) ?? "Unavailable path").font(.caption.monospaced()); Text("SHA256 \(change.oldHash.prefix(12))… → \(change.newHash.prefix(12))… · Team \(change.currentTeamIdentifier ?? "Unavailable")").font(.caption).foregroundStyle(.secondary) }.padding(.vertical, 3) }
+                    }
+                }
+                GlassCard {
                     VStack(alignment: .leading, spacing: 7) {
                         Text("Detection Coverage").font(.headline)
                         ForEach(capabilities) { item in
@@ -165,6 +174,7 @@ public struct NetworkIntelligenceView: View {
                 }
             }
         }
+        .task { if executableMonitor.identities.isEmpty { await executableMonitor.scan(apps: viewModel.applications) } }
     }
 
     private var timeCapsuleView: some View {

@@ -130,7 +130,7 @@ public struct NetworkIntelligenceAnalyzer: Sendable {
             DetectionCapability(id: "Upload spike detection", available: provider.suppliesPerFlowBytes, detail: provider.suppliesPerFlowBytes ? "Available from measured per-flow byte counters." : "Needs a future provider with measured per-flow byte counters."),
             DetectionCapability(id: "Wake and idle attribution", available: false, detail: "Needs durable power-state events correlated with connection observations."),
             DetectionCapability(id: "VPN and DNS leak detection", available: false, detail: "Needs route, interface, and DNS resolver attribution from a future system provider."),
-            DetectionCapability(id: "Executable change detection", available: false, detail: "Needs durable executable identity, signature, and hash snapshots."),
+            DetectionCapability(id: "Executable change detection", available: true, detail: "Hashes readable running-app executables and compares durable signer/team identity snapshots."),
             DetectionCapability(id: "Inbound port-scan detection", available: false, detail: "Needs inbound attempt telemetry; established-socket polling cannot prove scans.")
         ]
     }

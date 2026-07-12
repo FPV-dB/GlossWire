@@ -127,6 +127,12 @@ The **Investigations** page provides a dedicated watchlist, daily local reports,
 
 The **Visuals** page provides a current process hierarchy correlated with retained connection PIDs and a Sankey-style process-to-destination relationship diagram. The process tree uses the current `ps` parent PID table, so historical parents that have exited may be unavailable. Sankey line thickness represents retained observation counts, not bandwidth or packet volume.
 
+## Extensions And Plugins
+
+The **Extensions** page reports Network Extension readiness and scans the supported Application Support plugin folders. Data-only catalog plugins are allowed only declarative capabilities. Executable plugins must remain inside their plugin directory, pass macOS code-signature verification, expose a stable TeamIdentifier, and declare unique API v1 capabilities. They are not loaded into GlossWire's main process.
+
+The production app continues using the polling provider until a signed embedded flow extension has the Apple entitlement, receives user approval, activates successfully, and supplies a working transport. Merely finding an extension never enables or advertises per-flow bytes or per-app enforcement. See `docs/PLUGIN_API.md` for the manifest and boundary contract.
+
 ## LAN-Preserving Internet Kill Switch
 
 In **Settings → Firewall**, choose **Isolate from Internet** and confirm the administrator prompt. GlossWire installs ordered `quick` PF rules that permit loopback, RFC 1918 and link-local IPv4, IPv6 ULA and link-local ranges, multicast, and broadcast before blocking remaining inbound and outbound public traffic. This is designed to leave routers, NAS devices, printers, and local discovery reachable. Use **Restore Internet** to remove isolation. If recovery is needed, **Stop All Blocking** overrides the kill switch and empties GlossWire's managed anchors without deleting its saved configuration. Existing stateful connections may take a short time to expire after isolation.

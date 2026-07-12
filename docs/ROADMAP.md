@@ -35,6 +35,7 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - Expiry-aware endpoint enrichment cache combining reverse DNS, ASN, RDAP, reputation score, and direct user-triggered non-intercepting TLS certificate inspection.
 - Dedicated investigation workflow with watchlist activity, once-daily local reports, configurable 1–365 day connection retention, WAL checkpointing, and SQLite compaction.
 - Current process hierarchy correlated to retained PIDs and a Sankey-style process-to-destination relationship canvas with evidence labels.
+- API v1 capability-declared plugin registry with path confinement, TeamIdentifier signature validation, data-only capability limits, isolated-host boundary, and Network Extension readiness bridge.
 
 ## Phase 2 — Investigation Metadata
 
@@ -70,8 +71,8 @@ Alerts remain informational by default and must work without GeoIP availability.
 
 ## Long-Term Architecture
 
-- Optional Network Extension provider for reliable per-app flow identity and enforcement.
-- Signed module/plugin interfaces with capability declarations and permission boundaries.
+- Apple entitlement, signed extension target, user approval flow, and XPC implementation remain required to activate the Network Extension bridge.
+- Executable plugin dispatch schemas and isolated XPC host implementation remain required before validated executable plugins can run.
 - Indexed threat-feed matching for multi-million-entry inbound attack lists.
 
 ## Explicitly Excluded From The Current Scope

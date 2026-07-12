@@ -111,6 +111,12 @@ In **Settings → Logging and History**, enable **Disable all logs** to immediat
 
 The **Alerts** page evaluates retained connection history and measured process-rate samples for new processes, new destinations, periodic endpoint patterns, IPv6 adoption, and process upload spikes. Alerts are informational and never alter firewall rules automatically. Repeated signals are deduplicated into an occurrence count, can be filtered by severity and status, acknowledged or resolved, and muted per process for 24 hours. Disable all logs prevents new alert persistence.
 
+## Endpoint Enrichment
+
+The **Enrichment** page combines cached reverse DNS, Team Cymru ASN, RDAP ownership, and existing reputation scoring for a user-entered public IPv4 address. Records expire after 24 hours and can be explicitly refreshed. RDAP contacts `rdap.org`; ASN and PTR use DNS, so these lookups reveal the investigated address to their providers.
+
+The TLS Certificate Viewer performs a direct, user-triggered TLS handshake to a hostname and port and displays the peer certificate subject, issuer, validity dates, SHA-256 fingerprint, negotiated protocol, and cipher where OpenSSL exposes them. It does not install a certificate authority, intercept another application's traffic, decrypt payloads, or retain packet contents.
+
 ## LAN-Preserving Internet Kill Switch
 
 In **Settings → Firewall**, choose **Isolate from Internet** and confirm the administrator prompt. GlossWire installs ordered `quick` PF rules that permit loopback, RFC 1918 and link-local IPv4, IPv6 ULA and link-local ranges, multicast, and broadcast before blocking remaining inbound and outbound public traffic. This is designed to leave routers, NAS devices, printers, and local discovery reachable. Use **Restore Internet** to remove isolation. If recovery is needed, **Stop All Blocking** overrides the kill switch and empties GlossWire's managed anchors without deleting its saved configuration. Existing stateful connections may take a short time to expire after isolation.

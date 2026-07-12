@@ -32,13 +32,13 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - Blocklists, country/provider controls, service blocking, and emergency pause/recovery.
 - Durable Network Memory tags, notes, trusted-context markers, favourites, and watchlists.
 - Unified informational Alert Centre with severity/status filtering, deduplication, occurrence counts, acknowledgement, resolution, and 24-hour process muting.
+- Expiry-aware endpoint enrichment cache combining reverse DNS, ASN, RDAP, reputation score, and direct user-triggered non-intercepting TLS certificate inspection.
 
 ## Phase 2 — Investigation Metadata
 
 - IP first-seen, last-seen, and times-seen aggregation.
-- Automatic reverse-DNS enrichment in retained history with caching and expiry.
-- Compact WHOIS/RDAP ownership summaries.
-- ASN browser that filters current and historical connections.
+- Automatic reverse-DNS enrichment in retained history; the current cache is user-triggered pending provider-attributed background policy.
+- ASN browser that filters current and historical connections; compact ASN/RDAP summaries are available in Enrichment.
 - Extend Privacy Mode masking to every remaining dashboard, inspector, export, and menu-bar surface.
 - Exportable recorded investigation sessions.
 
@@ -64,7 +64,6 @@ Alerts remain informational by default and must work without GeoIP availability.
 
 ## Phase 5 — Enrichment
 
-- TLS certificate viewer for user-selected endpoints, showing subject, issuer, expiry, fingerprint, negotiated TLS version, and cipher where obtainable without interception.
 - Local network topology from passive observations and explicit user-approved discovery.
 - Higher-confidence application/service fingerprints with visible evidence and uncertainty labels.
 

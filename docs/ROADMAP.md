@@ -34,6 +34,7 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - Unified informational Alert Centre with severity/status filtering, deduplication, occurrence counts, acknowledgement, resolution, and 24-hour process muting.
 - Expiry-aware endpoint enrichment cache combining reverse DNS, ASN, RDAP, reputation score, and direct user-triggered non-intercepting TLS certificate inspection.
 - Dedicated investigation workflow with watchlist activity, once-daily local reports, configurable 1–365 day connection retention, WAL checkpointing, and SQLite compaction.
+- Current process hierarchy correlated to retained PIDs and a Sankey-style process-to-destination relationship canvas with evidence labels.
 
 ## Phase 2 — Investigation Metadata
 
@@ -58,9 +59,8 @@ Alerts remain informational by default and must work without GeoIP availability.
 - Interactive bandwidth heatmap by process.
 - Country activity timeline.
 - Connection lifetime histogram.
-- Process tree with inherited network activity.
+- Historical process ancestry after parent exit; current process-tree correlation is implemented.
 - Connection relationship grouping.
-- Sankey-style process-to-provider view.
 - Compact menu-bar health dashboard.
 
 ## Phase 5 — Enrichment

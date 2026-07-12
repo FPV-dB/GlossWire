@@ -54,6 +54,8 @@ public struct FirewallDashboardView: View {
                     EndpointEnrichmentView()
                 case .investigations:
                     InvestigationWorkflowView(network: applicationNetworkViewModel)
+                case .visuals:
+                    InvestigationVisualsView(network: applicationNetworkViewModel)
                 case .blockedIPs:
                     blockedIPs
                 case .blocklists:
@@ -208,6 +210,7 @@ public struct FirewallDashboardView: View {
                 sidebarRow(.alerts)
                 sidebarRow(.enrichment)
                 sidebarRow(.investigations)
+                sidebarRow(.visuals)
             }
 
             Section("PROTECTION") {

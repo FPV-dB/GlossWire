@@ -123,6 +123,10 @@ The **Investigations** page provides a dedicated watchlist, daily local reports,
 
 **Prune and Compact** permanently removes connection observations older than the selected 1–365 day retention period, checkpoints the SQLite write-ahead log, and vacuums the database. Application rules, firewall configuration, watchlists, annotations, and reports are not deleted. Disable all logs prevents new report persistence.
 
+## Investigation Visuals
+
+The **Visuals** page provides a current process hierarchy correlated with retained connection PIDs and a Sankey-style process-to-destination relationship diagram. The process tree uses the current `ps` parent PID table, so historical parents that have exited may be unavailable. Sankey line thickness represents retained observation counts, not bandwidth or packet volume.
+
 ## LAN-Preserving Internet Kill Switch
 
 In **Settings → Firewall**, choose **Isolate from Internet** and confirm the administrator prompt. GlossWire installs ordered `quick` PF rules that permit loopback, RFC 1918 and link-local IPv4, IPv6 ULA and link-local ranges, multicast, and broadcast before blocking remaining inbound and outbound public traffic. This is designed to leave routers, NAS devices, printers, and local discovery reachable. Use **Restore Internet** to remove isolation. If recovery is needed, **Stop All Blocking** overrides the kill switch and empties GlossWire's managed anchors without deleting its saved configuration. Existing stateful connections may take a short time to expire after isolation.

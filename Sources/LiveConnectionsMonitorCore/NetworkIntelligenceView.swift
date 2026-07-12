@@ -7,6 +7,7 @@ public struct NetworkIntelligenceView: View {
     @State private var section = IntelligenceSection.journal
     @State private var searchText = ""
     @State private var quietMode = false
+    @StateObject private var timeCapsule = NetworkTimeCapsuleViewModel()
 
     public init(viewModel: ApplicationNetworkViewModel) { self.viewModel = viewModel }
 
@@ -45,6 +46,7 @@ public struct NetworkIntelligenceView: View {
         case .domains: domains(analyzer)
         case .calendar: calendar(analyzer)
         case .signals: signals(analyzer)
+        case .timeCapsule: timeCapsuleView
         }
     }
 
@@ -165,6 +167,15 @@ public struct NetworkIntelligenceView: View {
         }
     }
 
+    private var timeCapsuleView: some View {
+        ScrollView { VStack(alignment: .leading, spacing: 12) {
+            HStack { VStack(alignment: .leading) { Text("Network Time Capsule").font(.title3.weight(.semibold)); Text("One durable system-and-network context snapshot per day while GlossWire runs.").foregroundStyle(.secondary) }; Spacer(); Button { Task { await timeCapsule.capture(records: viewModel.timelineHistory) } } label: { Label("Capture Now", systemImage: "camera.metering.center.weighted") }.disabled(timeCapsule.capturing) }
+            if let error = timeCapsule.error { Text(error).foregroundStyle(.orange).font(.caption) }
+            if timeCapsule.snapshots.isEmpty { ContentUnavailableView("No snapshots", systemImage: "archivebox", description: Text("Capture a snapshot or leave GlossWire running for its first daily capture.")) }
+            ForEach(timeCapsule.snapshots) { item in GlassCard { VStack(alignment: .leading, spacing: 5) { HStack { Text(item.timestamp.formatted(date: .long, time: .shortened)).font(.headline); Spacer(); Text("\(item.observedProcesses.count) processes · \(item.activeDestinations.count) destinations").font(.caption.monospacedDigit()) }; Text("Wi-Fi: \(item.wifiNetwork ?? "Unavailable") · Gateway: \(item.gateway ?? "Unavailable") · IPv4 \(item.ipv4Available ? "yes" : "no") · IPv6 \(item.ipv6Available ? "yes" : "no")").font(.caption); Text("Installed apps \(item.installedApplications.count) · Observed LAN devices \(item.observedLANDevices.count)").font(.caption); DisclosureGroup("Snapshot details") { Text("Apps: \(item.installedApplications.joined(separator: ", "))\n\nLAN: \(item.observedLANDevices.joined(separator: ", "))\n\nUnavailable: \(item.unavailableEvidence.joined(separator: "; "))\n\nRouting table:\n\(item.routingTable)").font(.caption.monospaced()).textSelection(.enabled) } } } }
+        }.padding(4) }.task { await timeCapsule.captureDailyIfNeeded(records: viewModel.timelineHistory) }
+    }
+
     private func matches(_ value: String) -> Bool { searchText.isEmpty || value.localizedCaseInsensitiveContains(searchText) }
     private func maskProcess(_ value: String) -> String { PrivacyRedactor.process(value, enabled: viewModel.privacyModeEnabled) }
     private func exportInvestigationPackage() {
@@ -174,10 +185,11 @@ public struct NetworkIntelligenceView: View {
         Task {
             let weather = await InternetWeatherStore().load()
             let bookmarks = TimelineBookmarkStore().bookmarks
-            do { try await InvestigationPackageExporter().export(to: url, records: records, weather: weather, bookmarks: bookmarks, privacyMode: privacy) }
+            let snapshots = await NetworkTimeCapsuleStore().load()
+            do { try await InvestigationPackageExporter().export(to: url, records: records, weather: weather, bookmarks: bookmarks, snapshots: snapshots, privacyMode: privacy) }
             catch { viewModel.errorMessage = "Could not export investigation package: \(error.localizedDescription)" }
         }
     }
 }
 
-private enum IntelligenceSection: String, CaseIterable, Identifiable { case overview = "Overview", journal = "Journal", passports = "Passports", memory = "Network Memory", ports = "Ports", domains = "Domains", calendar = "Calendar", signals = "Signals"; var id: String { rawValue } }
+private enum IntelligenceSection: String, CaseIterable, Identifiable { case overview = "Overview", journal = "Journal", passports = "Passports", memory = "Network Memory", ports = "Ports", domains = "Domains", calendar = "Calendar", signals = "Signals", timeCapsule = "Time Capsule"; var id: String { rawValue } }

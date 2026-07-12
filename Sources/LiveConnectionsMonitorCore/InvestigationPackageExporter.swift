@@ -2,7 +2,7 @@ import Foundation
 
 public struct InvestigationPackageExporter: Sendable {
     public init() {}
-    public func export(to destination: URL, records: [AppConnectionRecord], weather: [InternetWeatherSample], bookmarks: [TimelineBookmark], privacyMode: Bool) async throws {
+    public func export(to destination: URL, records: [AppConnectionRecord], weather: [InternetWeatherSample], bookmarks: [TimelineBookmark], snapshots: [NetworkTimeCapsuleSnapshot] = [], privacyMode: Bool) async throws {
         let fm = FileManager.default
         let root = fm.temporaryDirectory.appendingPathComponent("GlossWire-Investigation-\(UUID().uuidString)", isDirectory: true)
         defer { try? fm.removeItem(at: root) }
@@ -14,6 +14,7 @@ public struct InvestigationPackageExporter: Sendable {
         try jsonRecords(records, privacyMode: privacyMode).write(to: root.appendingPathComponent("connections.json"), options: .atomic)
         try encoded(weather).write(to: root.appendingPathComponent("internet-weather.json"), options: .atomic)
         try encoded(bookmarks).write(to: root.appendingPathComponent("timeline-bookmarks.json"), options: .atomic)
+        try encoded(redactedSnapshots(snapshots, enabled: privacyMode)).write(to: root.appendingPathComponent("network-time-capsule.json"), options: .atomic)
         try capabilityManifest.write(to: root.appendingPathComponent("CAPABILITIES.txt"), atomically: true, encoding: .utf8)
         try? fm.removeItem(at: destination)
         let result = try await CommandRunner().run("/usr/bin/ditto", arguments: ["-c", "-k", "--sequesterRsrc", "--keepParent", root.path, destination.path])
@@ -68,6 +69,17 @@ public struct InvestigationPackageExporter: Sendable {
         return try JSONSerialization.data(withJSONObject: objects, options: [.prettyPrinted, .sortedKeys])
     }
     private func encoded<T: Encodable>(_ value: T) throws -> Data { let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]; encoder.dateEncodingStrategy = .iso8601; return try encoder.encode(value) }
+    private func redactedSnapshots(_ values: [NetworkTimeCapsuleSnapshot], enabled: Bool) -> [NetworkTimeCapsuleSnapshot] {
+        guard enabled else { return values }
+        return values.map { item in NetworkTimeCapsuleSnapshot(id: item.id, timestamp: item.timestamp,
+            installedApplications: item.installedApplications.map { PrivacyRedactor.process($0, enabled: true) },
+            observedProcesses: item.observedProcesses.map { PrivacyRedactor.process($0, enabled: true) },
+            activeDestinations: item.activeDestinations.map { PrivacyRedactor.address($0, enabled: true) },
+            observedLANDevices: item.observedLANDevices.map { _ in "Hidden LAN device" }, wifiNetwork: item.wifiNetwork.map { _ in "Hidden network" },
+            gateway: PrivacyRedactor.address(item.gateway, enabled: true), ipv4Available: item.ipv4Available, ipv6Available: item.ipv6Available,
+            latencyMS: item.latencyMS, packetLossPercent: item.packetLossPercent, dnsResponseMS: item.dnsResponseMS,
+            routingTable: "Redacted by Privacy Mode", unavailableEvidence: item.unavailableEvidence) }
+    }
     private func csvEscape(_ value: String) -> String { let escaped = value.replacingOccurrences(of: "\"", with: "\"\""); return value.contains(",") || value.contains("\"") || value.contains("\n") ? "\"\(escaped)\"" : escaped }
     private var capabilityManifest: String { """
         GlossWire Evidence Capabilities
@@ -77,6 +89,7 @@ public struct InvestigationPackageExporter: Sendable {
         - Rule outcomes stored with those observations
         - Locally measured Internet Weather history
         - User-created Timeline bookmarks
+        - Network Time Capsule snapshots
 
         NOT INCLUDED OR INFERRED
         - Packet payloads or packet capture

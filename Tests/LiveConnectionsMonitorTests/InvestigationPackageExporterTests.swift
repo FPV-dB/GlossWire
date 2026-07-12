@@ -19,4 +19,5 @@ import Testing
     #expect(names.contains("connections.json"))
     #expect(names.contains("internet-weather.json"))
     #expect(names.contains("timeline-bookmarks.json"))
+    #expect(names.contains("network-time-capsule.json"))
 }

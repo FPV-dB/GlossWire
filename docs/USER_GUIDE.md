@@ -85,7 +85,9 @@ Periodic signals are behavioral hints, not malware verdicts. Upload-spike, wake/
 
 Internet ratings measure consistency and observable behavior; they are not reputation verdicts or security certificates. **Explain My Computer** is generated locally from the most recent minute of retained endpoint metadata and does not send data to an AI service. Quiet Mode hides routine rating cards and shows a quiet state when no supported behavior signals are present.
 
-Choose **Export Package** on the Intelligence page to create a ZIP containing a readable summary, Network Journal, connection CSV and JSON, Internet Weather history, Timeline bookmarks, and a capability manifest. Privacy Mode redacts supported connection identifiers in the CSV and JSON export. The manifest records evidence limitations so the package is not mistaken for packet capture or proof that an absent event never occurred.
+Choose **Export Package** on the Intelligence page to create a ZIP containing a readable summary, Network Journal, connection CSV and JSON, Internet Weather history, Timeline bookmarks, Time Capsule data, and a capability manifest. Privacy Mode redacts supported connection identifiers and Time Capsule network identity details. The manifest records evidence limitations so the package is not mistaken for packet capture or proof that an absent event never occurred.
+
+The **Time Capsule** tab saves at most one automatic snapshot per day while GlossWire is running, with an additional **Capture Now** control. A snapshot records installed application names, observed processes and destinations, passively observed LAN devices, Wi-Fi name, gateway and route availability, recent quality measurements, and the routing table. It explicitly lists unavailable evidence such as process-attributed DNS cache entries and public IP. Disable all logs prevents snapshot persistence. Time Capsule data is included in investigation packages.
 
 ## Disable All Logs
 

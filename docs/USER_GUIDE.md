@@ -107,6 +107,10 @@ In **Settings → Logging and History**, enable **Disable all logs** to immediat
 
 **Internet Weather** measures three ICMP round trips to `1.1.1.1`, DNS response time for `example.com`, IPv4 and IPv6 default-route availability, and the current IPv4 gateway. Samples are stored locally to build evidence for ISP-quality history; **Disable all logs** prevents new history writes. Failed ICMP or DNS probes can indicate filtering rather than a total outage. GlossWire does not contact a public-IP or ISP-identification API in this mode.
 
+## Alert Centre
+
+The **Alerts** page evaluates retained connection history and measured process-rate samples for new processes, new destinations, periodic endpoint patterns, IPv6 adoption, and process upload spikes. Alerts are informational and never alter firewall rules automatically. Repeated signals are deduplicated into an occurrence count, can be filtered by severity and status, acknowledged or resolved, and muted per process for 24 hours. Disable all logs prevents new alert persistence.
+
 ## LAN-Preserving Internet Kill Switch
 
 In **Settings → Firewall**, choose **Isolate from Internet** and confirm the administrator prompt. GlossWire installs ordered `quick` PF rules that permit loopback, RFC 1918 and link-local IPv4, IPv6 ULA and link-local ranges, multicast, and broadcast before blocking remaining inbound and outbound public traffic. This is designed to leave routers, NAS devices, printers, and local discovery reachable. Use **Restore Internet** to remove isolation. If recovery is needed, **Stop All Blocking** overrides the kill switch and empties GlossWire's managed anchors without deleting its saved configuration. Existing stateful connections may take a short time to expire after isolation.

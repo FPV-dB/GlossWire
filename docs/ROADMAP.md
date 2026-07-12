@@ -31,6 +31,7 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - Plain-English **Why is this connected?** inference from visible metadata.
 - Blocklists, country/provider controls, service blocking, and emergency pause/recovery.
 - Durable Network Memory tags, notes, trusted-context markers, favourites, and watchlists.
+- Unified informational Alert Centre with severity/status filtering, deduplication, occurrence counts, acknowledgement, resolution, and 24-hour process muting.
 
 ## Phase 2 — Investigation Metadata
 
@@ -47,7 +48,6 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - New executable, destination, country, port, protocol, and IPv6-use alerts.
 - Executable signing and hash-change alerts.
 - Per-process connection-count and bandwidth baselines.
-- Duplicate-alert rate limiting, severity controls, and 24-hour app muting.
 - Daily and weekly local reports.
 
 Alerts remain informational by default and must work without GeoIP availability.

@@ -18,6 +18,8 @@ The app is intentionally conservative. It uses dedicated PF anchors, shows gener
 - [Development And Architecture](docs/DEVELOPMENT.md)
 - [Feature Roadmap](docs/ROADMAP.md)
 - [Plugin and Network Extension API](docs/PLUGIN_API.md)
+- [Release and Hardening Guide](docs/RELEASE.md)
+- [Installed UI Screenshots](docs/SCREENSHOTS.md)
 - [Privacy And Security Notes](docs/PRIVACY_SECURITY.md)
 - [Screenshots](docs/SCREENSHOTS.md)
 - [Google Filtering Audit](docs/GoogleFilteringAudit.md)

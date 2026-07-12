@@ -36,6 +36,7 @@ This roadmap groups proposed features by architectural dependency. It is not a p
 - Dedicated investigation workflow with watchlist activity, once-daily local reports, configurable 1–365 day connection retention, WAL checkpointing, and SQLite compaction.
 - Current process hierarchy correlated to retained PIDs and a Sankey-style process-to-destination relationship canvas with evidence labels.
 - API v1 capability-declared plugin registry with path confinement, TeamIdentifier signature validation, data-only capability limits, isolated-host boundary, and Network Extension readiness bridge.
+- Reproducible version/build metadata, hardened-runtime signing option, release verifier, distribution checklist, security/privacy checklist, and installed-app screenshot documentation.
 
 ## Phase 2 — Investigation Metadata
 

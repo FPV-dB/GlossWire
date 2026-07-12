@@ -4,6 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="$ROOT/build/GlossWire.app"
 EXE="$ROOT/.build/arm64-apple-macosx/release/LiveConnectionsMonitor"
+VERSION="${GLOSSWIRE_VERSION:-1.0}"
+BUILD_NUMBER="${GLOSSWIRE_BUILD_NUMBER:-1}"
+SIGN_IDENTITY="${GLOSSWIRE_SIGN_IDENTITY:--}"
 
 cd "$ROOT"
 DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" swift build -c release
@@ -25,11 +28,12 @@ printf 'APPL????' > "$APP/Contents/PkgInfo"
   -c 'Add :CFBundleInfoDictionaryVersion string 6.0' \
   -c 'Add :CFBundleName string GlossWire' \
   -c 'Add :CFBundlePackageType string APPL' \
-  -c 'Add :CFBundleShortVersionString string 1.0' \
-  -c 'Add :CFBundleVersion string 1' \
+  -c "Add :CFBundleShortVersionString string $VERSION" \
+  -c "Add :CFBundleVersion string $BUILD_NUMBER" \
+  -c 'Add :LSApplicationCategoryType string public.app-category.utilities' \
   -c 'Add :LSMinimumSystemVersion string 14.0' \
   -c 'Add :NSPrincipalClass string NSApplication' \
   "$APP/Contents/Info.plist"
 
-codesign --force --deep --sign - "$APP" >/dev/null
+codesign --force --deep --options runtime --timestamp=none --sign "$SIGN_IDENTITY" "$APP" >/dev/null
 echo "$APP"

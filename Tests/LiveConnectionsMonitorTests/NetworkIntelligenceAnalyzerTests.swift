@@ -19,8 +19,24 @@ private func intelRecord(_ id: String, day: TimeInterval, app: String, remote: S
     #expect(signals.contains { $0.kind == .beacon && $0.process == "helper" })
     #expect(signals.contains { $0.kind == .ipv6 && $0.process == "helper" })
     let coverage = analyzer.detectionCapabilities(provider: .processCounters)
-    #expect(coverage.first { $0.id == "Upload spike detection" }?.available == false)
+    #expect(coverage.first { $0.id == "Process upload spike detection" }?.available == true)
+    #expect(coverage.first { $0.id == "Per-flow upload attribution" }?.available == false)
     #expect(coverage.first { $0.id == "Inbound port-scan detection" }?.available == false)
+}
+
+@Test func uploadSpikeForecastAndServiceRecognitionUseSupportedEvidence() {
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let samples = (0..<4).map { AppTrafficSample(timestamp: now.addingTimeInterval(Double($0 - 4)), appBundleIdentifier: "sync", uploadBps: 100_000, downloadBps: 0, activeConnectionCount: 1) }
+        + [AppTrafficSample(timestamp: now, appBundleIdentifier: "sync", uploadBps: 4_000_000, downloadBps: 0, activeConnectionCount: 1)]
+    let record = AppConnectionRecord(id: "plex", timestamp: now, appBundleIdentifier: "Plex", pid: 1, direction: .outbound, protocolKind: .tcp,
+        localAddress: "127.0.0.1", localPort: "1", remoteAddress: "192.168.1.2", remotePort: "32400", remoteHostname: "plex.local",
+        countryCode: nil, state: "ESTABLISHED", bytesSent: nil, bytesReceived: nil, duration: 0, ruleAction: .observed)
+    let analyzer = NetworkIntelligenceAnalyzer()
+    let spike = analyzer.uploadSpikes(samplesByApp: ["sync": samples]).first
+    #expect(spike?.currentBps == 4_000_000)
+    #expect(spike?.multiplier == 40)
+    #expect(analyzer.recognizedServices(records: [record]).first?.id == "Plex")
+    #expect(analyzer.activityForecast(records: [record], now: now).todayObservations == 1)
 }
 
 @Test func ratingsFingerprintAndLocalExplanationUseRetainedEvidence() {

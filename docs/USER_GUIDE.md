@@ -81,7 +81,11 @@ The **Intelligence** page turns retained connection observations into local summ
 
 Search and Privacy Mode apply to the intelligence views. These summaries describe connection metadata GlossWire has actually retained; they do not inspect payloads, infer packet counts, or claim traffic-byte totals when those measurements are unavailable. Domain-family grouping is a display heuristic and is not a public-suffix classification service.
 
-Periodic signals are behavioral hints, not malware verdicts. Upload-spike, wake/idle attribution, VPN/DNS leak, and inbound port-scan detection remain visibly capability-gated until GlossWire has the measured byte, power-state, route/DNS, or inbound-attempt telemetry needed to support them accurately.
+Periodic signals are behavioral hints, not malware verdicts. Per-flow upload attribution, definitive DNS-leak verdicts, and inbound port-scan detection remain visibly capability-gated until GlossWire has the flow-byte, resolver-attribution, or inbound-attempt telemetry needed to support them accurately.
+
+Process-level **Upload spike** signals use GlossWire's measured upload-rate samples after at least five samples and a 1 MB/s minimum; they do not claim which individual flow carried the bytes. Per-flow attribution remains capability-gated. The Overview activity forecast projects retained connection-observation volume for the day and month and displays its history-based confidence; it is not a bandwidth forecast when byte counters are unavailable.
+
+The **Services** tab recognises conventional hostname, process-name, and port hints for Apple ecosystem traffic, Plex, Jellyfin, Home Assistant, Synology, QNAP, UniFi, Chromecast, Tapo, and DJI. Recognition is a navigational hint rather than deep protocol inspection.
 
 The **Executable Change Detector** in Signals hashes readable executables for running applications and stores their SHA-256 and signing team identifier. Later scans distinguish ordinary same-signer updates from signer changes and unsigned or unavailable-signer replacements. The first scan establishes a baseline and is not an alert. Disable all logs allows a one-time comparison but prevents saving the new baseline.
 

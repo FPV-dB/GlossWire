@@ -49,6 +49,7 @@ public struct NetworkIntelligenceView: View {
         case .calendar: calendar(analyzer)
         case .signals: signals(analyzer)
         case .timeCapsule: timeCapsuleView
+        case .services: services(analyzer)
         }
     }
 
@@ -56,11 +57,13 @@ public struct NetworkIntelligenceView: View {
         let ratings = analyzer.internetRatings(records: viewModel.timelineHistory).filter { matches($0.id) }
         let fingerprint = analyzer.fingerprint(records: viewModel.timelineHistory)
         let signals = analyzer.behaviourSignals(records: viewModel.timelineHistory)
+        let forecast = analyzer.activityForecast(records: viewModel.timelineHistory)
         return ScrollView {
             VStack(spacing: 12) {
                 if !quietMode || !signals.isEmpty {
                     GlassCard { VStack(alignment: .leading, spacing: 8) { Label("Explain My Computer", systemImage: "text.bubble").font(.headline); Text(analyzer.explainMyComputer(records: viewModel.timelineHistory)).textSelection(.enabled); Text("Generated locally without an AI or cloud service.").font(.caption).foregroundStyle(.secondary) } }
                     GlassCard { HStack { VStack(alignment: .leading) { Text("Internet Fingerprint").font(.headline); Text(fingerprint.currentSignature).font(.caption.monospaced()).foregroundStyle(.secondary) }; Spacer(); Text(fingerprint.similarityPercent.map { "\($0)% like yesterday" } ?? "Needs two days").font(.title3.monospacedDigit()) } }
+                    GlassCard { HStack { VStack(alignment: .leading) { Text("Activity Forecast").font(.headline); Text("\(forecast.todayObservations) observations so far · \(forecast.confidence) confidence").font(.caption).foregroundStyle(.secondary) }; Spacer(); VStack(alignment: .trailing) { Text("~\(forecast.projectedToday.formatted()) today").font(.headline.monospacedDigit()); Text("~\(forecast.projectedMonth.formatted()) this month").font(.caption.monospacedDigit()) } } }
                 }
                 if quietMode && signals.isEmpty { ContentUnavailableView("Quiet", systemImage: "moon.zzz", description: Text("No supported changes or behavioural signals are currently visible.")) }
                 if !quietMode {
@@ -138,6 +141,7 @@ public struct NetworkIntelligenceView: View {
 
     private func signals(_ analyzer: NetworkIntelligenceAnalyzer) -> some View {
         let signals = analyzer.behaviourSignals(records: viewModel.timelineHistory).filter { matches($0.process) || matches($0.detail) }
+        let uploadSpikes = analyzer.uploadSpikes(samplesByApp: viewModel.samplesByApp)
         let capabilities = analyzer.detectionCapabilities(provider: .processCounters)
         return ScrollView {
             VStack(spacing: 12) {
@@ -152,6 +156,7 @@ public struct NetworkIntelligenceView: View {
                                 Text(signal.detail).font(.caption).foregroundStyle(.secondary)
                             }.padding(.vertical, 4)
                         }
+                        ForEach(uploadSpikes) { spike in VStack(alignment: .leading, spacing: 3) { Text("Upload spike").font(.subheadline.weight(.semibold)); Text(maskProcess(spike.id)).font(.caption.monospaced()); Text("Current \(ByteCountFormatter.string(fromByteCount: Int64(spike.currentBps), countStyle: .decimal))/s · baseline \(ByteCountFormatter.string(fromByteCount: Int64(spike.baselineBps), countStyle: .decimal))/s · \(spike.multiplier.formatted(.number.precision(.fractionLength(1))))×").font(.caption).foregroundStyle(.orange) }.padding(.vertical, 4) }
                     }
                 }
                 GlassCard {
@@ -193,6 +198,11 @@ public struct NetworkIntelligenceView: View {
         .task { if executableMonitor.identities.isEmpty { await executableMonitor.scan(apps: viewModel.applications) }; if systemContext.context == nil { await systemContext.refresh() } }
     }
 
+    private func services(_ analyzer: NetworkIntelligenceAnalyzer) -> some View {
+        let rows = analyzer.recognizedServices(records: viewModel.timelineHistory).filter { matches($0.id) || matches($0.category) }
+        return List(rows) { item in VStack(alignment: .leading, spacing: 5) { HStack { Text(item.id).font(.headline); Text(item.category).font(.caption).padding(.horizontal, 6).background(.quaternary, in: Capsule()); Spacer(); Text("\(item.observations) observations").font(.caption.monospacedDigit()) }; Text("Processes: \(item.processes.map(maskProcess).joined(separator: ", "))").font(.caption); Text("Destinations: \(item.destinations.map { PrivacyRedactor.address($0, enabled: viewModel.privacyModeEnabled) }.joined(separator: ", "))").font(.caption.monospaced()).foregroundStyle(.secondary); Text("Recognition is a hostname, process, and conventional-port hint—not protocol inspection.").font(.caption2).foregroundStyle(.secondary) }.padding(.vertical, 4) }
+    }
+
     private var timeCapsuleView: some View {
         ScrollView { VStack(alignment: .leading, spacing: 12) {
             HStack { VStack(alignment: .leading) { Text("Network Time Capsule").font(.title3.weight(.semibold)); Text("One durable system-and-network context snapshot per day while GlossWire runs.").foregroundStyle(.secondary) }; Spacer(); Button { Task { await timeCapsule.capture(records: viewModel.timelineHistory) } } label: { Label("Capture Now", systemImage: "camera.metering.center.weighted") }.disabled(timeCapsule.capturing) }
@@ -218,4 +228,4 @@ public struct NetworkIntelligenceView: View {
     }
 }
 
-private enum IntelligenceSection: String, CaseIterable, Identifiable { case overview = "Overview", journal = "Journal", passports = "Passports", memory = "Network Memory", ports = "Ports", domains = "Domains", calendar = "Calendar", signals = "Signals", timeCapsule = "Time Capsule"; var id: String { rawValue } }
+private enum IntelligenceSection: String, CaseIterable, Identifiable { case overview = "Overview", journal = "Journal", passports = "Passports", memory = "Network Memory", ports = "Ports", domains = "Domains", services = "Services", calendar = "Calendar", signals = "Signals", timeCapsule = "Time Capsule"; var id: String { rawValue } }

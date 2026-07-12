@@ -42,6 +42,9 @@ public struct ApplicationInternetRating: Identifiable, Sendable, Hashable {
     public let destinationEntropy: Double; public let observationsPerHour: Double; public let explanation: String
 }
 public struct NetworkFingerprint: Sendable, Hashable { public let similarityPercent: Int?; public let currentSignature: String; public let previousSignature: String? }
+public struct UploadSpike: Identifiable, Sendable, Hashable { public let id: String; public let currentBps: Double; public let baselineBps: Double; public let multiplier: Double }
+public struct ActivityForecast: Sendable, Hashable { public let todayObservations: Int; public let projectedToday: Int; public let projectedMonth: Int; public let confidence: String }
+public struct RecognizedNetworkService: Identifiable, Sendable, Hashable { public let id: String; public let category: String; public let observations: Int; public let processes: [String]; public let destinations: [String] }
 
 public struct NetworkIntelligenceAnalyzer: Sendable {
     private let calendar = Calendar.current
@@ -127,7 +130,8 @@ public struct NetworkIntelligenceAnalyzer: Sendable {
         [
             DetectionCapability(id: "Periodic beacon detection", available: true, detail: "Uses repeated endpoint timestamps; it is a pattern hint, not a malware verdict."),
             DetectionCapability(id: "IPv6 activity", available: true, detail: "Uses retained remote-address metadata."),
-            DetectionCapability(id: "Upload spike detection", available: provider.suppliesPerFlowBytes, detail: provider.suppliesPerFlowBytes ? "Available from measured per-flow byte counters." : "Needs a future provider with measured per-flow byte counters."),
+            DetectionCapability(id: "Process upload spike detection", available: true, detail: "Uses measured process upload-rate samples and requires at least five samples plus a 1 MB/s floor."),
+            DetectionCapability(id: "Per-flow upload attribution", available: provider.suppliesPerFlowBytes, detail: provider.suppliesPerFlowBytes ? "Available from measured per-flow byte counters." : "Needs a future provider with measured per-flow byte counters."),
             DetectionCapability(id: "Wake and idle attribution", available: true, detail: "Uses macOS wake notifications, session idle time, power assertions, and retained observations while GlossWire runs."),
             DetectionCapability(id: "VPN awareness", available: true, detail: "Uses active utun interfaces and the IPv4 default route; split tunnels remain explicitly ambiguous."),
             DetectionCapability(id: "DNS leak assessment", available: false, detail: "Resolver-to-interface attribution is incomplete on some macOS configurations; the UI reports indeterminate rather than a verdict."),
@@ -173,6 +177,47 @@ public struct NetworkIntelligenceAnalyzer: Sendable {
         let remotes = Set(recent.compactMap(\.remoteAddress)).count, ipv6 = recent.filter { $0.remoteAddress?.contains(":") == true }.count
         let blocked = recent.filter { $0.ruleAction == .blocked || $0.ruleAction == .manualBlock }.count
         return "During the last minute, GlossWire retained \(recent.count) connection observations from \(apps.count) processes to \(remotes) remote addresses. The most active were \(top). \(ipv6) observations used IPv6 and \(blocked) carried a blocked rule outcome. This local explanation uses endpoint metadata only and does not inspect traffic contents or certify destination safety."
+    }
+
+    public func uploadSpikes(samplesByApp: [String: [AppTrafficSample]]) -> [UploadSpike] {
+        samplesByApp.compactMap { process, samples in
+            guard samples.count >= 5, let latest = samples.max(by: { $0.timestamp < $1.timestamp }) else { return nil }
+            let history = samples.filter { $0.id != latest.id }.map(\.uploadBps); guard !history.isEmpty else { return nil }
+            let baseline = history.reduce(0, +) / Double(history.count)
+            let variance = history.reduce(0) { $0 + pow($1 - baseline, 2) } / Double(history.count); let deviation = sqrt(variance)
+            guard latest.uploadBps >= 1_000_000, latest.uploadBps > baseline + max(250_000, deviation * 3) else { return nil }
+            return UploadSpike(id: process, currentBps: latest.uploadBps, baselineBps: baseline, multiplier: latest.uploadBps / max(1, baseline))
+        }.sorted { $0.currentBps > $1.currentBps }
+    }
+
+    public func activityForecast(records: [AppConnectionRecord], now: Date = Date()) -> ActivityForecast {
+        let start = calendar.startOfDay(for: now); let today = records.filter { $0.timestamp >= start && $0.timestamp <= now }.count
+        let elapsed = max(1, now.timeIntervalSince(start)); let projected = Int(Double(today) * 86_400 / elapsed)
+        let days = calendar.range(of: .day, in: .month, for: now)?.count ?? 30
+        let retainedDays = Set(records.map { calendar.startOfDay(for: $0.timestamp) }).count
+        return ActivityForecast(todayObservations: today, projectedToday: projected, projectedMonth: projected * days, confidence: retainedDays >= 7 ? "Higher (7+ retained days)" : retainedDays >= 2 ? "Early" : "Low (less than 2 retained days)")
+    }
+
+    public func recognizedServices(records: [AppConnectionRecord]) -> [RecognizedNetworkService] {
+        let matches = records.compactMap { record -> (String, String, AppConnectionRecord)? in
+            let text = [record.appBundleIdentifier, record.remoteHostname ?? "", record.remotePort ?? ""].joined(separator: " ").lowercased()
+            let match: (String, String)?
+            if text.contains("plex") || text.contains("32400") { match = ("Plex", "Media") }
+            else if text.contains("jellyfin") || text.contains("8096") || text.contains("8920") { match = ("Jellyfin", "Media") }
+            else if text.contains("homeassistant") || text.contains("home-assistant") || text.contains("8123") { match = ("Home Assistant", "Smart Home") }
+            else if text.contains("synology") || text.contains("5000") || text.contains("5001") { match = ("Synology", "NAS") }
+            else if text.contains("qnap") || text.contains("8080") { match = ("QNAP", "NAS") }
+            else if text.contains("unifi") || text.contains("8443") { match = ("UniFi", "Network") }
+            else if text.contains("chromecast") || text.contains("8008") || text.contains("8009") { match = ("Chromecast", "Media") }
+            else if text.contains("tapo") { match = ("Tapo", "Camera / Smart Home") }
+            else if text.contains("dji") { match = ("DJI", "Device") }
+            else if text.contains("airplay") || text.contains("7000") || text.contains("7100") { match = ("AirPlay", "Apple Ecosystem") }
+            else if text.contains("rapportd") || text.contains("sharingd") || text.contains("handoff") { match = ("Continuity / Handoff", "Apple Ecosystem") }
+            else if text.contains("mdns") || text.contains("5353") { match = ("Bonjour / mDNS", "Discovery") }
+            else { match = nil }
+            return match.map { ($0.0, $0.1, record) }
+        }
+        return Dictionary(grouping: matches, by: { $0.0 }).map { name, values in RecognizedNetworkService(id: name, category: values.first?.1 ?? "Service", observations: values.count, processes: ranked(values.map { $0.2.appBundleIdentifier }, limit: 5), destinations: ranked(values.compactMap { $0.2.remoteAddress }, limit: 5)) }.sorted { $0.observations > $1.observations }
     }
 
     private func shannonEntropy(_ counts: [Int]) -> Double { let total = Double(counts.reduce(0, +)); guard total > 0 else { return 0 }; return -counts.reduce(0) { sum, count in let p = Double(count) / total; return sum + p * log2(p) } }
